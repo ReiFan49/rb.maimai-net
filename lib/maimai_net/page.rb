@@ -50,7 +50,7 @@ module MaimaiNet
       protected :initialize_extension
     end
 
-    require 'maimai_net/page-helper'
+    require 'maimai_net/page-html_helper'
 
     class FinaleArchive < Base
       # @return [void]
@@ -63,7 +63,7 @@ module MaimaiNet
         @player_block = @root.at_css('.basic_block')
       end
 
-      def data
+      helper_method :data do
         stat_keys = %i(
           count_clear
           count_s    count_sp
