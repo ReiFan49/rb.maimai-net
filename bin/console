@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+
+require "bundler/setup"
+begin; require 'byebug'; rescue LoadError; end
+require "maimai_net"
+
+console = nil
+begin; require 'pry'
+rescue LoadError; require 'irb'; console = :irb
+else; console = :pry
+end
+
+case console
+when :pry; Pry.start
+else; IRB.start(__FILE__)
+end
