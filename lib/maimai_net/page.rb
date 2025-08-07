@@ -178,7 +178,7 @@ module MaimaiNet
           fail TypeError, "expected HTML Node, given #{element.class}"
         end
 
-        element['style']&.value&.split(/\s*;\s*/)&.map do |line|
+        element['style']&.split(/\s*;\s*/)&.map do |line|
           line.split(/\s*:\s*/, 2)
         end.to_h
       end

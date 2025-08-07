@@ -184,7 +184,6 @@ module MaimaiNet
           @_method_mutex ||= {}
           @_method_mutex[key] ||= {}
           can_lock = !@_method_mutex[key].fetch(meth, nil)&.locked?
-          # $stderr.puts "#{key}/#{meth} lock #{can_lock}"
           return unless can_lock
 
           mutex = @_method_mutex[key][meth] = Mutex.new
@@ -261,9 +260,8 @@ module MaimaiNet
         # Hooks method that specified through cache_method with internal cache wrapper.
         # @see #cache_method
         def method_added(meth)
-          is_locked = false
           mutex = @_method_mutex.to_h.dig(:cache_method, meth)
-          is_locked = mutex.locked? if mutex && mutex.locked?
+          is_locked = mutex&.locked?
 
           if @_cache_methods&.include?(meth) && !is_locked then
             alias_method :"raw_#{meth}", meth
