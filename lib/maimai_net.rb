@@ -4,6 +4,7 @@ module MaimaiNet
 
   require 'maimai_net/core_ext'
   require 'maimai_net/util'
+  require 'maimai_net/constants'
 
   require 'maimai_net/region'
   require 'maimai_net/client'
