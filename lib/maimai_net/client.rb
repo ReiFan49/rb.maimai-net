@@ -245,11 +245,15 @@ module MaimaiNet
       # (see Connection#send_request)
       def send_request(method, url, data, **opts)
         info = @client.class.region_info
+        body = Faraday::METHODS_WITH_BODY.include?(method) ? data : nil
 
         resp = @conn.run_request(
           method.to_s.downcase.to_sym, url,
-          data, nil,
-        ) # .on_complete do |resp|
+          body, nil,
+        ) do |req|
+          req.params.update(data) if Faraday::METHODS_WITH_QUERY.include?(method) && Hash === data
+        end
+
         if info.key?(:login_error_proc) && info[:login_error_proc].call(resp.env.url, resp.body) then
           return on_login_error
         elsif resp.env.url == URI.join(info[:website_base], info[:website_base].path + '/', 'error/') then
