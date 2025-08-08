@@ -185,7 +185,9 @@ module MaimaiNet
 
       # hook upon receiving generic error page
       # @return [void]
-      # @raise [Error::LoginError]   if error code describes an invalid login
+      # @raise [Error::LoginError] error code describes an invalid login
+      # @raise [Error::SessionRefreshError] error code describes a vague request to visit homepage
+      # @raise [Error::SessionExpiredError] error code describes the session is fully expired and requires another login
       # @raise [Error::GeneralError]
       def on_error(body)
         page = Nokogiri::HTML.parse(body)
@@ -196,6 +198,10 @@ module MaimaiNet
         case error_code
         when 100101
           fail Error::LoginError, error_code
+        when 200002
+          fail Error::SessionRefreshError, error_code
+        when 200004
+          fail Error::SessionExpiredError, error_code
         else
           fail Error::GeneralError, error_code
         end
