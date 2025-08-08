@@ -64,8 +64,78 @@ module MaimaiNet
         send_request('get', '/maimai-mobile/home', nil)
       end
 
+      # access player data
+      # @param diffs [Array<String, Symbol, Integer, MaimaiNet::Difficulty>] valid difficulty values
+      # @return [Page::PlayerData]        player's maimai deluxe single difficulty statistics
+      # @return [Array<Page::PlayerData>] player's maimai deluxe multiple difficulty statistics
+      # @raise [TypeError] invalid difficulty provided
+      # @raise [ArgumentError] no difficulty provided
+      def player_data(*diffs)
+        diffs.compact!
+        diffs.uniq!
+        fail ArgumentError, "expected at least 1, given #{diffs.size}" if diffs.empty?
+
+        diff_errors = []
+        diffs.reject do |diff|
+          case diff
+          when String, Symbol
+            MaimaiNet::Difficulty::DELUXE_WEBSITE.key?(diff.to_sym) ||
+            MaimaiNet::Difficulty::DELUXE_WEBSITE.key?(Difficulty::SHORTS.key(diff.to_sym))
+          when MaimaiNet::Difficulty # always true
+            true
+          when Integer
+            MaimaiNet::Difficulty::DELUXE_WEBSITE.value?(diff)
+          else
+            false
+          end
+        end.each do |diff|
+          case diff
+          when String, Symbol; diff_errors << [diff, KeyError]
+          when Integer;        diff_errors << [diff, ArgumentError]
+          else;                diff_errors << [diff, TypeError]
+          end
+        end
+
+        unless diff_errors.empty?
+          fail TypeError, "at least one of difficulty provided are erroneous.\n%s" % [
+            diff_errors.map do |d, et| '(%s: %p)' % [et, d] end.join(', '),
+          ]
+        end
+
+        diffs.map! do |diff|
+          case diff
+          when String, Symbol;        MaimaiNet.Difficulty(diff)
+          when MaimaiNet::Difficulty; diff
+          when Integer;               MaimaiNet.Difficulty(deluxe_web_id: diff)
+          end
+        end
+        diffs.sort_by! &:id
+
+        results = diffs.map do |diff|
+          send_request(
+            'get', '/maimai-mobile/playerData',
+            {diff: diff.deluxe_web_id},
+            response_page: Page::PlayerData,
+          )
+        end
+
+        # aggregate results if necessary
+        if results.size > 1 then
+          user_diff_stat = {}
+          results.each do |result|
+            user_diff_stat.update result.statistics
+          end
+          results.first.class.new(
+            plate: results.first.plate,
+            statistics: user_diff_stat,
+          )
+        else
+          results.shift
+        end
+      end
+
       # access finale archive page
-      # @return [void]
+      # @return [Page::FinaleArchive] player's archived maimai finale statistics
       def finale_archive
         send_request(
           'get', '/maimai-mobile/home/congratulations', nil,
@@ -245,11 +315,15 @@ module MaimaiNet
       # (see Connection#send_request)
       def send_request(method, url, data, **opts)
         info = @client.class.region_info
+        body = Faraday::METHODS_WITH_BODY.include?(method) ? data : nil
 
         resp = @conn.run_request(
           method.to_s.downcase.to_sym, url,
-          data, nil,
-        ) # .on_complete do |resp|
+          body, nil,
+        ) do |req|
+          req.params.update(data) if Faraday::METHODS_WITH_QUERY.include?(method) && Hash === data
+        end
+
         if info.key?(:login_error_proc) && info[:login_error_proc].call(resp.env.url, resp.body) then
           return on_login_error
         elsif resp.env.url == URI.join(info[:website_base], info[:website_base].path + '/', 'error/') then

@@ -12,7 +12,7 @@ module MaimaiNet
           "#{k} = page.instance_variable_get(#{k.inspect})"
         end.join($/).tap do |expr|
           instance_eval expr, __FILE__, __LINE__ + 1
-        end
+        end if Page::Base === page
 
         @_page = page
       end
@@ -20,6 +20,7 @@ module MaimaiNet
       # proxy method
       private
       def method_missing(meth, *args, **kwargs, &block)
+        return super unless Page::Base === @_page
         kwargs.empty? ?
           @_page.__send__(meth, *args, &block) :
           @_page.__send__(meth, *args, **kwargs, &block)
@@ -28,6 +29,7 @@ module MaimaiNet
       # checks whether current or proxied object have respective method.
       # @return [Boolean]
       def respond_to_missing?(meth, priv=false)
+        return super unless Page::Base === @_page
         super or @_page.respond_to?(meth, priv)
       end
 
@@ -40,9 +42,6 @@ module MaimaiNet
       end
 
       private
-      # @note recursive potential
-      # @return [void]
-      def helper; end
       # @return [String] stripped text content
       def strip(node); node&.content.strip; end
       # @return [String] src attribute of the element

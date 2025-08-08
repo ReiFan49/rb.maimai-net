@@ -119,12 +119,44 @@ module MaimaiNet
       alias inspect to_s
     end
 
-    module FinaleArchive
+    module PlayerCommon
       Info = Base::Struct.new(
         name: String,
         title: String,
         grade: String,
       )
+    end
+
+    module PlayerData
+      Decoration = Base::Struct.new(
+        icon: String,
+      )
+      ExtendedInfo = Base::Struct.new(
+        rating: Integer,
+        class_grade: String,
+        partner_star_total: Integer,
+      )
+
+      DifficultyStatistic = Base::Struct.new(
+        clears: SongCount,
+        ranks: Generic[Hash, Symbol, SongCount],
+        dx_ranks: Generic[Hash, Integer, SongCount],
+        flags: Generic[Hash, Symbol, SongCount],
+        sync_flags: Generic[Hash, Symbol, SongCount],
+      )
+
+      InfoPlate = Base::Struct.new(
+        info: PlayerCommon::Info,
+        decoration: Decoration,
+        extended: ExtendedInfo,
+      )
+      Data = Base::Struct.new(
+        plate: InfoPlate,
+        statistics: Generic[Hash, Symbol, DifficultyStatistic],
+      )
+    end
+
+    module FinaleArchive
       Decoration = Base::Struct.new(
         icon: String,
         player_frame: String,
@@ -150,11 +182,11 @@ module MaimaiNet
       )
 
       Data = Base::Struct.new(
-        info:       Info,
+        info:       PlayerCommon::Info,
         decoration: Decoration,
         extended:   ExtendedInfo,
 
-        statistics: Generic[Hash, Integer, DifficultyStatistic],
+        statistics: Generic[Hash, Symbol, DifficultyStatistic],
       )
     end
 

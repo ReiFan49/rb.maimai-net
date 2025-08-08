@@ -51,8 +51,114 @@ module MaimaiNet
     end
 
     require 'maimai_net/page-html_helper'
+    require 'maimai_net/page-player_data_helper'
+
+    class PlayerData < Base
+      STAT_KEYS = %i(
+        count_sssp count_sss
+        count_ssp  count_ss
+        count_sp   count_s
+        count_clear
+        count_dx5
+        count_dx4  count_dx3
+        count_dx2  count_dx1
+        count_max  count_ap
+        count_gfc  count_fc
+        count_fdx2 count_fdx1
+        count_fs2  count_fs1  count_sync_play
+      ).freeze
+
+      STAT_FIELDS = {
+        ranks: [
+          %i(count_s count_sp count_ss count_ssp count_sss count_sssp),
+          %i(s sp ss ssp sss sssp),
+        ],
+        dx_ranks: [
+          Array.new(5) do |i| :"count_dx#{i.succ}" end,
+          Array.new(5) do |i| i.succ end,
+        ],
+        flags: [
+          %i(count_fc count_gfc count_ap count_max),
+          %i(fc gfc ap max),
+        ],
+        sync_flags: [
+          %i(count_sync_play count_fs1 count_fs2 count_fdx1 count_fdx2),
+          %i(play full_sync_miss full_sync_match full_deluxe_miss full_deluxe_match),
+        ],
+      }.freeze
+
+      def initialize_extension
+        super
+
+        @gameplay_block = @root.at_css('.see_through_block:nth-of-type(1)')
+        @player_block = @gameplay_block.at_css('.basic_block')
+      end
+
+      helper_method :data do
+        user_count_version_plays, user_count_series_plays = scan_int(strip(@gameplay_block.at_css('> .basic_block + .clearfix + div')))
+        deluxe_web_id = int(@gameplay_block.at_css('form[action$="/playerData/"] button[name=diff][value]:has(.diffbtn_selected)')['value'])
+        diff = MaimaiNet.Difficulty({deluxe_web_id: deluxe_web_id})
+
+        raw_stat = STAT_KEYS.zip(PlayerDataHelper.process(@gameplay_block)).to_h
+        diff_stat = {}
+        diff_stat[:clears] = raw_stat[:count_clear]
+        STAT_FIELDS.each do |k, (source, target)|
+          diff_stat[k] = target.zip(raw_stat.values_at(*source)).to_h
+        end
+        user_diff_stat = {diff.abbrev => Model::PlayerData::DifficultyStatistic.new(**diff_stat)}
+
+        Model::PlayerData::Data.new(
+          plate: Model::PlayerData::InfoPlate.new(
+            info: Model::PlayerCommon::Info.new(
+              name: strip(@player_block.at_css('.name_block')),
+              title: strip(@player_block.at_css('.trophy_block')),
+              grade: src(@player_block.at_css('> div > .clearfix ~ img:nth-of-type(1)')),
+            ),
+            decoration: Model::PlayerData::Decoration.new(
+              icon: src(@player_block.at_css('> img:nth-of-type(1)'))
+            ),
+            extended: Model::PlayerData::ExtendedInfo.new(
+              rating: get_int(strip(@player_block.at_css('.rating_block'))),
+              class_grade: src(@player_block.at_css('> div > .clearfix ~ img:nth-of-type(2)')),
+              partner_star_total: get_int(strip(@player_block.at_css('> div > .clearfix ~ div:nth-of-type(1)'))),
+            ),
+          ),
+          statistics: user_diff_stat,
+        )
+      end
+    end
 
     class FinaleArchive < Base
+      STAT_KEYS = %i(
+        count_clear
+        count_s    count_sp
+        count_ss   count_ssp
+        count_sss  count_max
+        count_fc   count_gfc count_ap
+        count_sync_play
+        count_mf count_tmf count_sync_max
+      ).freeze
+
+      STAT_FIELDS = {
+        ranks: [
+          %i(count_s count_sp count_ss count_ssp count_sss count_max),
+          %i(s sp ss ssp sss max),
+        ],
+        flags: [
+          %i(count_fc count_gfc count_ap),
+          %i(fc gfc ap),
+        ],
+        sync_flags: [
+          %i(count_sync_play count_sync_max),
+          %i(play max),
+        ],
+        multi_flags: [
+          %i(count_mf count_tmf),
+          %i(max_fever strong_max_fever),
+        ]
+      }.freeze
+
+
       # @return [void]
       def initialize_extension
         super
@@ -64,39 +170,6 @@ module MaimaiNet
       end
 
       helper_method :data do
-        stat_keys = %i(
-          count_clear
-          count_s    count_sp
-          count_ss   count_ssp
-          count_sss  count_max
-          count_fc   count_gfc count_ap
-          count_sync_play
-          count_mf count_tmf count_sync_max
-        )
-        stat_key_indices = Array.new(stat_keys.size) do |i|
-          i.odd? ?
-            (i >> 1) + stat_keys.size.fdiv(2).ceil.to_i :
-            (i >> 1)
-        end
-        stat_fields = {
-          ranks: [
-            %i(count_s count_sp count_ss count_ssp count_sss count_max),
-            %i(s sp ss ssp sss max),
-          ],
-          flags: [
-            %i(count_fc count_gfc count_ap),
-            %i(fc gfc ap),
-          ],
-          sync_flags: [
-            %i(count_sync_play count_sync_max),
-            %i(play max),
-          ],
-          multi_flags: [
-            %i(count_mf count_tmf),
-            %i(max_fever strong_max_fever),
-          ]
-        }
-
         user_block_styles = Page::parse_style(@player_block.at_css('.finale_user_block'))
         user_block_image = user_block_styles['background-image'][4...-1] rescue nil
 
@@ -109,38 +182,29 @@ module MaimaiNet
           user_count_versus_wins, user_count_sync_amount = @gameplay_block.css('table td')
             .map(&method(:strip)).map(&method(:get_int))
 
-        user_difficulty_statistics = {}
+        user_diff_stat = {}
         @gameplay_block.css('div.finale_musiccount_block').each do |difficulty_block|
-          key = difficulty_block.attribute('id').value
-          key_index = %w(all easy basic advanced expert master remaster).index(key[0...-4])
+          key = difficulty_block.attribute('id').value.slice(0...-4).to_sym
+          diff = MaimaiNet.Difficulty(key)
 
-          difficulty_statistics = {}
-          raw_statistics = {}
-          raw_statistics[:total_score] = get_int(strip(difficulty_block.at_css('div:nth-child(1)')))
+          diff_stat = {}
+          raw_stat = {}
+          raw_stat[:total_score] = get_int(strip(difficulty_block.at_css('div:nth-child(1)')))
+          raw_stat.update STAT_KEYS.zip(PlayerDataHelper.process(difficulty_block)).to_h
 
-          difficulty_raw_values = []
-          difficulty_block.css('.musiccount_counter_block').each do |difficulty_stat_block|
-            difficulty_raw_values << scan_int(strip(difficulty_stat_block))
-          end
-          stat_keys.each_with_index do |k, i|
-            raw_statistics[k] = Model::SongCount.new(
-              **%i(achieved total).zip(difficulty_raw_values[stat_key_indices[i]]).to_h
-            )
+          diff_stat[:total_score] = raw_stat[:total_score]
+          diff_stat[:clears] = raw_stat[:count_clear]
+          STAT_FIELDS.each do |k, (source, target)|
+            diff_stat[k] = target.zip(raw_stat.values_at(*source)).to_h
           end
 
-          difficulty_statistics[:total_score] = raw_statistics[:total_score]
-          difficulty_statistics[:clears] = raw_statistics[:count_clear]
-          stat_fields.each do |k, (source, target)|
-            difficulty_statistics[k] = target.zip(raw_statistics.values_at(*source)).to_h
-          end
-
-          user_difficulty_statistics[key_index] = Model::FinaleArchive::DifficultyStatistic.new(**difficulty_statistics)
+          user_diff_stat[diff.abbrev] = Model::FinaleArchive::DifficultyStatistic.new(**diff_stat)
         end
 
         user_collection_count = int(strip(@collection_block.at_css('div:nth-child(1)')))
 
         Model::FinaleArchive::Data.new(
-          info: Model::FinaleArchive::Info.new(
+          info: Model::PlayerCommon::Info.new(
             name:  strip(@player_block.at_css('.finale_username')),
             title: strip(@player_block.at_css('.finale_trophy_inner_block')),
             grade: src(@player_block.at_css('.finale_grade')),
@@ -163,7 +227,7 @@ module MaimaiNet
             ),
             partner_level_total: int(strip(@player_block.at_css('.finale_totallv')).scan(/\d+/).first),
           ),
-          statistics: user_difficulty_statistics,
+          statistics: user_diff_stat,
         )
       end
     end
