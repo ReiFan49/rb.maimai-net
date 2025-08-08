@@ -65,7 +65,7 @@ module MaimaiNet
       end
 
       # access finale archive page
-      # @return [void]
+      # @return [Page::FinaleArchive] player's archived maimai finale statistics
       def finale_archive
         send_request(
           'get', '/maimai-mobile/home/congratulations', nil,
