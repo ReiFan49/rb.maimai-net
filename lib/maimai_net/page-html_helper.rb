@@ -1,5 +1,8 @@
 module MaimaiNet
   module Page
+    # Interesting on how refinement ON this file affects the use of helper_method block invocation.
+    using IncludeDifficulty
+
     # @!api private
     # scope extension to add various html-related method
     class HelperBlock < ::BasicObject

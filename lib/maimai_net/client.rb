@@ -7,6 +7,8 @@ require 'maimai_net/faraday_ext/cookie_jar'
 
 module MaimaiNet
   module Client
+    using IncludeDifficulty
+
     class Base
       include CoreExt
 
@@ -103,9 +105,9 @@ module MaimaiNet
 
         diffs.map! do |diff|
           case diff
-          when String, Symbol;        MaimaiNet.Difficulty(diff)
+          when String, Symbol;        Difficulty(diff)
           when MaimaiNet::Difficulty; diff
-          when Integer;               MaimaiNet.Difficulty(deluxe_web_id: diff)
+          when Integer;               Difficulty(deluxe_web_id: diff)
           end
         end
         diffs.sort_by! &:id

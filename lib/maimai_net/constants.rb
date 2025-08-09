@@ -117,6 +117,4 @@ module MaimaiNet
 
   include Constants
   private_constant :Constants
-
-  def self.Difficulty(key); Difficulty.new(key); end
 end

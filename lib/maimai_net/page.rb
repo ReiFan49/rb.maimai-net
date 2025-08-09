@@ -97,7 +97,7 @@ module MaimaiNet
       helper_method :data do
         user_count_version_plays, user_count_series_plays = scan_int(strip(@gameplay_block.at_css('> .basic_block + .clearfix + div')))
         deluxe_web_id = int(@gameplay_block.at_css('form[action$="/playerData/"] button[name=diff][value]:has(.diffbtn_selected)')['value'])
-        diff = MaimaiNet.Difficulty({deluxe_web_id: deluxe_web_id})
+        diff = Difficulty({deluxe_web_id: deluxe_web_id})
 
         raw_stat = STAT_KEYS.zip(PlayerDataHelper.process(@gameplay_block)).to_h
         diff_stat = {}
@@ -185,7 +185,7 @@ module MaimaiNet
         user_diff_stat = {}
         @gameplay_block.css('div.finale_musiccount_block').each do |difficulty_block|
           key = difficulty_block.attribute('id').value.slice(0...-4).to_sym
-          diff = MaimaiNet.Difficulty(key)
+          diff = Difficulty(key)
 
           diff_stat = {}
           raw_stat = {}
