@@ -66,8 +66,7 @@ module MaimaiNet
 
       # access player data
       # @param diffs [Array<String, Symbol, Integer, MaimaiNet::Difficulty>] valid difficulty values
-      # @return [Page::PlayerData]        player's maimai deluxe single difficulty statistics
-      # @return [Array<Page::PlayerData>] player's maimai deluxe multiple difficulty statistics
+      # @return [Model::PlayerData::Data] player's maimai deluxe difficulty statistics
       # @raise [TypeError] invalid difficulty provided
       # @raise [ArgumentError] no difficulty provided
       def player_data(*diffs)
@@ -135,7 +134,7 @@ module MaimaiNet
       end
 
       # access finale archive page
-      # @return [Page::FinaleArchive] player's archived maimai finale statistics
+      # @return [Model::FinaleArchive::Data] player's archived maimai finale statistics
       def finale_archive
         send_request(
           'get', '/maimai-mobile/home/congratulations', nil,
@@ -215,7 +214,7 @@ module MaimaiNet
       # @param data   [String, Object] request body
       # @param opts   [Hash{Symbol => Object}]
       # @option response_page [Class<Page::Base>]  a callback to convert response into a page object
-      # @return [Model::Base] returns page data based from provided response_page field
+      # @return [Model::Base::Struct] returns page data based from provided response_page field
       # @return [void]
       def send_request(method, url, data, **opts)
         fail NotImplementedError if @conn.nil?
