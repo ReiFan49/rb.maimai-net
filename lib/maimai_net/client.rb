@@ -217,7 +217,8 @@ module MaimaiNet
       # @return [Model::Base::Struct] returns page data based from provided response_page field
       # @return [void]
       def send_request(method, url, data, **opts)
-        fail NotImplementedError if @conn.nil?
+        fail NotImplementedError, 'abstract method called' if Connection == method(__method__).owner
+        fail NotImplementedError, 'connection is not defined' if @conn.nil?
       end
     end
 
