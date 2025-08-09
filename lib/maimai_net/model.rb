@@ -156,6 +156,15 @@ module MaimaiNet
       )
     end
 
+    PhotoUpload = Base::Struct.new(
+      chart_type: String,
+      difficulty: Integer,
+      title: String,
+      url: String,
+      location: String,
+      time: Time,
+    )
+
     module FinaleArchive
       Decoration = Base::Struct.new(
         icon: String,

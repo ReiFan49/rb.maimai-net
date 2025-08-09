@@ -135,6 +135,15 @@ module MaimaiNet
         end
       end
 
+      # access recently uploaded photo album page
+      # @return [Array<Model::PhotoUpload>] player's recently uploaded photos
+      def photo_album
+        send_request(
+          'get', '/maimai-mobile/playerData/photo', nil,
+          response_page: Page::PhotoUpload,
+        )
+      end
+
       # access finale archive page
       # @return [Model::FinaleArchive::Data] player's archived maimai finale statistics
       def finale_archive

@@ -128,6 +128,31 @@ module MaimaiNet
       end
     end
 
+    class PhotoUpload < Base
+      helper_method :data do
+        images = @root.css('.container ~ div')
+        images.map do |elm|
+          elm = elm.at_css('> div')
+
+          chart_type = Pathname(src(elm.at_css('> .music_kind_icon'))).sub_ext('').basename
+          difficulty = Difficulty(Pathname(src(elm.at_css('> img:nth-of-type(2)'))).sub_ext('').sub('diff_', '').basename)
+
+          Model::PhotoUpload.new(
+            chart_type: chart_type.to_s,
+            difficulty: difficulty.id,
+            title: strip(elm.at_css('> div:not(.clearfix):nth-of-type(2)')),
+            url: src(elm.at_css('> img:nth-of-type(3)')),
+            location: strip(elm.at_css('> div:not(.clearfix):nth-of-type(4)')),
+            time: Time.strptime(
+              strip(elm.at_css('> div:not(.clearfix):nth-of-type(1)')) + ' +09:00',
+              '%Y/%m/%d %H:%M %z',
+              Time.now.localtime(32400),
+            ),
+          )
+        end
+      end
+    end
+
     class FinaleArchive < Base
       STAT_KEYS = %i(
         count_clear
