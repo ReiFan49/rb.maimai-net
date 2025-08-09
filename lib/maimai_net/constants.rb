@@ -86,6 +86,8 @@ module MaimaiNet
           @map  ||= {}
           @keys ||= {}
 
+          key = key.to_s if Pathname === key
+
           if !@map.empty? && Hash === key && key.size == 1 then
             data_key, data_value = key.first
             if VALID_ATTRIBUTES.include? data_key.to_sym then

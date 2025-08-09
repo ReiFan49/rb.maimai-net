@@ -20,5 +20,7 @@ module MaimaiNet
       end
     end
     class SessionExpiredError < SessionError; end
+
+    class RequestRetry < StandardError; end
   end
 end

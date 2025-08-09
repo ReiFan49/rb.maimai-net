@@ -135,6 +135,15 @@ module MaimaiNet
         end
       end
 
+      # access recently uploaded photo album page
+      # @return [Array<Model::PhotoUpload>] player's recently uploaded photos
+      def photo_album
+        send_request(
+          'get', '/maimai-mobile/playerData/photo', nil,
+          response_page: Page::PhotoUpload,
+        )
+      end
+
       # access finale archive page
       # @return [Model::FinaleArchive::Data] player's archived maimai finale statistics
       def finale_archive
@@ -221,6 +230,30 @@ module MaimaiNet
       def send_request(method, url, data, **opts)
         fail NotImplementedError, 'abstract method called' if Connection == method(__method__).owner
         fail NotImplementedError, 'connection is not defined' if @conn.nil?
+      end
+
+      private
+      # @!api private
+      # @param url  [URI] response url
+      # @param body [String] response body
+      # @return [Model::Base::Struct, Array<Model::Base::Struct>] response page handled result
+      # @return [nil] no response page defined to handle the response
+      def process_response(url:, body:, request_options:)
+        info = @client.class.region_info
+
+        if info.key?(:login_error_proc) && info[:login_error_proc].call(url, body) then
+          return on_login_error
+        elsif url == URI.join(info[:website_base], info[:website_base].path + '/', 'error/') then
+          return on_error(body)
+        elsif info[:login_page_proc].call(url) then
+          return on_login_request(url, body, **request_options)
+        end
+
+        if Class === request_options[:response_page] && request_options[:response_page] < Page::Base then
+          return request_options[:response_page].parse(body).data
+        end
+
+        nil
       end
     end
 
@@ -322,7 +355,6 @@ module MaimaiNet
 
       # (see Connection#send_request)
       def send_request(method, url, data, **opts)
-        info = @client.class.region_info
         body = Faraday::METHODS_WITH_BODY.include?(method) ? data : nil
 
         resp = @conn.run_request(
@@ -332,20 +364,13 @@ module MaimaiNet
           req.params.update(data) if Faraday::METHODS_WITH_QUERY.include?(method) && Hash === data
         end
 
-        if info.key?(:login_error_proc) && info[:login_error_proc].call(resp.env.url, resp.body) then
-          return on_login_error
-        elsif resp.env.url == URI.join(info[:website_base], info[:website_base].path + '/', 'error/') then
-          return on_error(resp.body)
-        elsif info[:login_page_proc].call(resp.env.url) then
-          return on_login_request(resp.env.url, resp.body, **opts)
-        end
-        # end
-
-        if Class === opts[:response_page] && opts[:response_page] < Page::Base then
-          return opts[:response_page].parse(resp.body).data
-        end
-
-        nil
+        process_response(
+          url: resp.env.url,
+          body: resp.body,
+          request_options: opts,
+        )
+      rescue Error::RequestRetry
+        retry
       end
 
       Base.register_connection :faraday, self
