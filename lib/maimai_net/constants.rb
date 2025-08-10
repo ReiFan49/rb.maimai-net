@@ -86,14 +86,20 @@ module MaimaiNet
           @map  ||= {}
           @keys ||= {}
 
-          key = key.to_s if Pathname === key
-
-          if !@map.empty? && Hash === key && key.size == 1 then
-            data_key, data_value = key.first
-            if VALID_ATTRIBUTES.include? data_key.to_sym then
-              key = @map.values.find do |obj| obj.public_send(data_key) == data_value end&.key or key
+          case key
+          when Pathname; key = key.to_s
+          when Integer
+            key = @map.values.find do |obj| obj.id == key end&.key or key
+          when Hash
+            if !@map.empty? && key.size == 1 then
+              data_key, data_value = key.first
+              if VALID_ATTRIBUTES.include? data_key.to_sym then
+                key = @map.values.find do |obj| obj.public_send(data_key) == data_value end&.key or key
+              end
             end
-          elsif key.respond_to?(:to_sym) then
+          end
+
+          if key.respond_to?(:to_sym) then
             key = key.to_sym
           end
           fail TypeError, "expected Symbol, given #{key.class}" unless Symbol === key
