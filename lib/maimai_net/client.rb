@@ -353,6 +353,14 @@ module MaimaiNet
         end
       end
 
+      # insert logging middleware into the connector, replaces if necessary
+      # @return [void]
+      def log!
+        replace_connector do
+          builder.response :logger, nil, headers: false, bodies: false, log_level: :info
+        end
+      end
+
       # (see Connection#send_request)
       def send_request(method, url, data, **opts)
         body = Faraday::METHODS_WITH_BODY.include?(method) ? data : nil
