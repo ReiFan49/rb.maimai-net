@@ -229,7 +229,6 @@ module MaimaiNet
       # @return [void]
       def send_request(method, url, data, **opts)
         fail NotImplementedError, 'abstract method called' if Connection == method(__method__).owner
-        fail NotImplementedError, 'connection is not defined' if @conn.nil?
       end
 
       private
@@ -336,8 +335,68 @@ module MaimaiNet
       end
     end
 
+    module ConnectionProtocol
+      # wraps connection method definition with auto-retry capability
+      # @param opts [Hash]
+      # @option retry_count [Integer] set maximum allowed retries within this retry block
+      # @raise [Error::RetryExhausted] upon attempting to exceed the allowed amount of
+      #   attempts for retrying the request.
+      def send_request(method, url, data, **opts)
+        fail NotImplementedError, 'connection is not defined' if @conn.nil?
+
+        # skip the wrapping if had been called recently
+        # * does not take account on "hooked" calls
+        prependers = self.class.ancestors
+        prependers.slice! (prependers.index(self.class)..)
+
+        stack = caller_locations(1).select do |trace| __method__.id2name == trace.label end.first(prependers.size)
+        if stack.size > 0 then
+          prev = stack[prependers.reverse.index(ConnectionProtocol)]
+          return super if __method__.id2name == prev.label # do not wrap further if it's a super call
+        end
+
+        max_count = retry_count = Integer === opts[:retry_count] ? opts[:retry_count] : 3
+        begin
+          super
+        rescue Error::RequestRetry
+          retry_count -= 1
+          retry unless retry_count.negative?
+          fail Error::RetryExhausted, "attempt exceeds #{max_count} retries"
+        end
+      end
+    end
+
+    module ConnectionMaintenanceSafety
+      # @return [Range(Time, Time)] JST's today maintenance schedule (in local time).
+      def maintenance_period
+        ctime = Time.now
+        atime = ctime.dup.localtime(32400)
+        start_mt = Time.new(
+          atime.year, atime.month, atime.day,
+          4, 0, 0, atime.utc_offset,
+        ).localtime(ctime.utc_offset)
+        (start_mt)...(start_mt + 10_800)
+      end
+
+      # prevents connection during maintenance period.
+      # @raise [Error::RoutineMaintenance] raised if invoked during maintenance period.
+      def send_request(method, url, data, **opts)
+        ctime = Time.now
+        period = maintenance_period
+        fail Error::RoutineMaintenance, period if period.include?(ctime)
+
+        super
+      end
+    end
+
     class Base
       extend ConnectionProvider
+    end
+
+    class << Connection
+      def inherited(cls)
+        cls.prepend ConnectionProtocol, ConnectionMaintenanceSafety
+      end
     end
 
     class FaradayConnection < Connection
@@ -369,8 +428,6 @@ module MaimaiNet
           body: resp.body,
           request_options: opts,
         )
-      rescue Error::RequestRetry
-        retry
       end
 
       Base.register_connection :faraday, self
