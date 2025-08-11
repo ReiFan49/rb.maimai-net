@@ -374,6 +374,19 @@ module MaimaiNet
       end
 
       private
+      def replace_connector(&block)
+        orig = @conn
+        if @conn.builder.instance_variable_get(:@app) then
+          @conn = @conn.dup
+          @conn.builder.instance_variable_set(:@app, nil) # reset app state to refresh the handlers
+        end
+        @conn.builder.build(&block)
+        nil
+      rescue
+        @conn = orig
+        nil
+      end
+
       def exclude_middlewares(*middlewares)
         return if middlewares.empty?
 
