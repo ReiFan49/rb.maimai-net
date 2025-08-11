@@ -66,6 +66,12 @@ module MaimaiNet
         send_request('get', '/maimai-mobile/home', nil)
       end
 
+      # logs out current session
+      # @return [void]
+      def logout
+        send_request('get', '/maimai-mobile/home/userOption/logout', nil)
+      end
+
       # access player data
       # @param diffs [Array<String, Symbol, Integer, MaimaiNet::Difficulty>] valid difficulty values
       # @return [Model::PlayerData::Data] player's maimai deluxe difficulty statistics
@@ -417,6 +423,13 @@ module MaimaiNet
       def log!
         replace_connector do
           builder.response :logger, nil, headers: false, bodies: false, log_level: :info
+        end
+      end
+
+      # (see Connection#logout)
+      def logout
+        exclude_middlewares :follow_redirects do
+          super
         end
       end
 
