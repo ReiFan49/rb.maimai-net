@@ -373,6 +373,33 @@ module MaimaiNet
         retry
       end
 
+      private
+      def exclude_middlewares(*middlewares)
+        return if middlewares.empty?
+
+        orig = @conn
+        if @conn.builder.instance_variable_get(:@app) then
+          @conn = @conn.dup
+          @conn.builder.instance_variable_set(:@app, nil) # reset app state to refresh the handlers
+        end
+        middlewares.each do |middleware|
+          if Symbol === middleware then
+            [Faraday::Request, Faraday::Response, Faraday::Middleware].map do |mod|
+              mod.lookup_middleware(middleware)
+            end.compact.tap do |result|
+              fail ArgumentError, "#{middleware} is not registered" if result.nil?
+              middleware = result
+            end
+          end
+          @conn.builder.handlers.delete middleware
+          fail ClientError, 'cannot logout with redirection followup' if @conn.builder.handlers.include? middleware
+        end
+
+        yield
+      ensure
+        @conn = orig
+      end
+
       Base.register_connection :faraday, self
     end
 
