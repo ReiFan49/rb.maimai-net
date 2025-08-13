@@ -1,73 +1,7 @@
 module MaimaiNet
   # data model used for parsed data from MaimaiNet::Page
   module Model
-    # @!api private
-    # defines a generic typing
-    class Generic
-      include CoreExt::MethodCache
-
-      def initialize(cls, variants)
-        @class    = cls
-        @variants = variants.freeze
-        freeze
-      end
-
-      cache_method :hash do
-        [@class, *@variants].inject(0) do |hsh, type|
-          ((hsh >> 11) | type.hash) % (1 << (0.size << 3))
-        end
-      end
-
-      def ===(obj)
-        class_match    = @class === obj
-        internal_match = if ::Array == @class then
-                           obj.each_with_index.all? do |val, i| variants[i % variants.size] === val end
-                         elsif ::Hash == @class then
-                           [obj.keys, obj.values].each_with_index.all? do |li, i|
-                             li.all? do |val| variants[i % variants.size] === val end
-                           end
-                         else
-                           fail NotImplementedError, "#{obj.class} does not support generic" unless obj.respond_to?(:generic_of?)
-                           obj.generic_of?(variants)
-                         end
-
-        class_match && internal_match
-      end
-
-      def to_s
-        "%s[%s]" % [
-          to_class.name,
-          variants.join(', '),
-        ]
-      end
-      alias inspect to_s
-
-      def to_class
-        @class
-      end
-      def variants
-        @variants
-      end
-
-      class << self
-        private :new
-
-        # defines a generic class statement
-        # @return [Generic]
-        def [](cls, *variants)
-          fail ArgumentError, 'no variants given' if variants.empty?
-          fail ArgumentError, 'variants must be a module or class' if variants.any? do |var| !(Module === var) end
-
-          @_list ||= {}
-          gen = @_list.fetch(cls, []).find do |gen_| gen_.variants.eql?(variants) end
-          return gen unless gen.nil?
-
-          gen = new(cls, variants)
-          (@_list[cls] ||= []) << gen
-          gen
-        end
-      end
-    end
+    require 'maimai_net/model-typing'
 
     module Base
       class Struct < ::Struct
