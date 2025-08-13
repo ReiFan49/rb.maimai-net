@@ -9,8 +9,12 @@ module MaimaiNet
         def initialize(**kwargs)
           props = self.class.instance_variable_get(:@_properties)
           keys = props.keys
+          optional_keys = props.select do |k, pr|
+            Either === pr[:class] &&
+            pr[:class].variants.include?(NilClass)
+          end.keys
 
-          missing_keys = keys - kwargs.keys
+          missing_keys = keys - (kwargs.keys | optional_keys)
           fail KeyError, "#{missing_keys.join(', ')} not defined" unless missing_keys.empty?
           kwargs.each do |key, value|
             fail KeyError, "#{key} is not defined as struct member" unless keys.include?(key)
@@ -33,7 +37,7 @@ module MaimaiNet
               @_properties[key] = case typedata
                                   when Array
                                     {class: Generic[*typedata]}
-                                  when Module, Generic
+                                  when Module, Variant
                                     {class: typedata}
                                   else
                                     fail TypeError, "invalid type definition"

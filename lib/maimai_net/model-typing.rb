@@ -107,5 +107,83 @@ module MaimaiNet::Model
     end
   end
 
+  class Either
+    include Variant
+    include MaimaiNet::CoreExt::MethodCache
+
+    def initialize(variants)
+      @variants = variants.freeze
+      freeze
+    end
+
+    cache_method :hash do
+      [*@variants].inject(0) do |hsh, type|
+        ((hsh >> 11) | type.hash) % (1 << (0.size << 3))
+      end
+    end
+
+    def ===(obj)
+      variants.any? do |variant| variant === obj end
+    end
+
+    def to_s
+      prefix = nil
+      prefix = 'Optional' if variants.include? NilClass
+
+      "%s(%s)" % [
+        prefix,
+        clean_variants.join('|'),
+      ]
+    end
+    alias inspect to_s
+
+    def variants
+      @variants
+    end
+
+    cache_method :clean_variants do
+      variants.reject do |variant| NilClass.eql? variant end
+    end
+
+    class << self
+      private :new
+
+      # defines an either class statement
+      # @return [Either]
+      def [](*variants)
+        variants.uniq!
+        return variants.first if variants.size == 1
+
+        @_list ||= {}
+        sorted_hash = variants.sort_by(&:object_id).hash
+        gen = @_list.fetch(sorted_hash, nil)
+        return gen unless gen.nil?
+
+        gen = new(variants)
+        @_list[sorted_hash] ||= gen
+        gen
+      end
+    end
+  end
+
+  module Optional
+    include Variant
+
+    class << self
+      def [](*variants)
+        variants << NilClass
+        variants.uniq!
+        fail ArgumentError, "invoking #{self.name}[#{variants.join(', ')}] is not allowed" if variants.size == 1
+
+        Either[*variants]
+      end
+
+      def append_features(cls); end
+      def prepend_features(cls); end
+    end
+  end
+
+  Boolean = Either[TrueClass, FalseClass]
+
   private_constant :GenericComparison
 end
