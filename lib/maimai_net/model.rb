@@ -94,14 +94,79 @@ module MaimaiNet
       )
     end
 
+    module Chart
+      info_base = {
+        title: String,
+        type: String,
+        difficulty: Integer,
+      }
+
+      InfoLite = Base::Struct.new(**info_base) do
+        def to_info(level_text: '?')
+          Info.new(title: title, type: type, difficulty: difficulty, level_text: level_text)
+        end
+      end
+
+      Info = Base::Struct.new(
+        **info_base,
+        level_text: String,
+      ) do
+        def to_lite
+          InfoLite.new(title: title, type: type, difficulty: difficulty)
+        end
+      end
+
+      Song = Base::Struct.new(
+        title: String,
+        artist: String,
+        genre: String,
+        jacket: String,
+      )
+    end
+
     PhotoUpload = Base::Struct.new(
-      chart_type: String,
-      difficulty: Integer,
-      title: String,
+      info: Chart::InfoLite,
       url: String,
       location: String,
       time: Time,
     )
+
+    module Result
+      Progress = Base::Struct.new(
+        value: Integer,
+        max: Integer,
+      ) do
+        def to_s; "#{value}/#{max}"; end
+        alias to_i value
+        alias inspect to_s
+      end
+    end
+
+    module Record
+      History = Base::Struct.new(
+        play_count: Integer,
+        last_played: Time,
+      )
+
+      Score = Base::Struct.new(
+        score: Float,
+        deluxe_score: Result::Progress,
+        grade: Symbol,
+        deluxe_grade: Integer,
+        flags: Generic[Array, Symbol],
+      )
+
+      ChartRecord = Base::Struct.new(
+        info: Chart::Info,
+        record: Optional[Score],
+        history: Optional[History],
+      )
+
+      Data = Base::Struct.new(
+        info: Chart::Song,
+        charts: Generic[Hash, Symbol, ChartRecord],
+      )
+    end
 
     module FinaleArchive
       Decoration = Base::Struct.new(

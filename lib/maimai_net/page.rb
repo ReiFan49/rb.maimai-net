@@ -138,9 +138,11 @@ module MaimaiNet
           difficulty = Difficulty(Pathname(src(elm.at_css('> img:nth-of-type(2)'))).sub_ext('').sub('diff_', '').basename)
 
           Model::PhotoUpload.new(
-            chart_type: chart_type.to_s,
-            difficulty: difficulty.id,
-            title: strip(elm.at_css('> div:not(.clearfix):nth-of-type(2)')),
+            info: Model::Chart::InfoLite.new(
+              title: strip(elm.at_css('> div:not(.clearfix):nth-of-type(2)')),
+              type: chart_type.to_s,
+              difficulty: difficulty.id,
+            ),
             url: src(elm.at_css('> img:nth-of-type(3)')),
             location: strip(elm.at_css('> div:not(.clearfix):nth-of-type(4)')),
             time: Time.strptime(
@@ -150,6 +152,99 @@ module MaimaiNet
             ),
           )
         end
+      end
+    end
+
+    class ChartsetRecord < Base
+      def initialize_extension
+        super
+
+        @summary_block = @root.at_css('.basic_block')
+      end
+
+      helper_method :data do
+        song_info_elm = @summary_block.at_css('> div:nth-of-type(1)')
+
+        song_jacket = src(@summary_block.at_css('> img:nth-of-type(1)'))
+        set_type = Pathname(src(song_info_elm.at_css('> div:nth-of-type(1) > img'))).sub_ext('').sub(/.+_/, '').basename.to_s
+        song_genre = strip(song_info_elm.at_css('> div:nth-of-type(1)'))
+        song_name = strip(song_info_elm.at_css('> div:nth-of-type(2)'))
+        song_artist = strip(song_info_elm.at_css('> div:nth-of-type(3)'))
+
+        song_info = Model::Chart::Song.new(
+          title:  song_name,
+          artist: song_artist,
+          genre:  song_genre,
+          jacket: song_jacket,
+        )
+
+        chart_records = {}
+        difficulty_data = {}
+        info_blocks = @summary_block.css('table > tbody > tr:has(.music_lv_back):has(form input[type=hidden][name=diff])')
+        chart_score_blocks = @summary_block.css('~ div:has(~ img)')
+
+        info_blocks.each do |info_block|
+          level_text = strip(info_block.at_css('.music_lv_back'))
+          difficulty = Difficulty(deluxe_web_id: info_block.at_css('form input[type=hidden][name=diff]')['value'].to_i)
+          difficulty_data[difficulty.abbrev] ||= {}
+          difficulty_data[difficulty.abbrev].store(:info, Model::Chart::Info.new(
+            title:      song_name,
+            type:       set_type,
+            difficulty: difficulty.id,
+            level_text: level_text,
+          ))
+        end
+
+        chart_score_blocks.each do |chart_score_block|
+          difficulty = Difficulty(Pathname(src(chart_score_block.at_css('> img:nth-of-type(1)'))).sub_ext('').sub(/.+_/, '').basename)
+          chart_type = Pathname(src(chart_score_block.at_css('> img:nth-of-type(2)')))&.sub_ext('')&.sub(/.+_/, '')&.basename&.to_s or set_type
+          clearfixes = chart_score_block.css('.clearfix')
+
+          chart_record_block = clearfixes[0].at_css('~ div:nth-of-type(2)')
+          record_grade, record_flag, record_sync_flag = chart_record_block.css('> img').map do |elm|
+            value = Pathname(URI(src(elm)).path).sub_ext('')&.sub(/.+_/, '')&.basename.to_s
+            value == 'back' ? nil : value.to_sym
+          end
+          last_played_date, total_play_count = chart_record_block.css('table tr td:nth-of-type(2)').zip([
+            ->(content){Time.strptime(content + ' +09:00', '%Y/%m/%d %H:%M %z')},
+            method(:int),
+          ]).map do |elm, block|
+            block.call(strip(elm))
+          end
+
+          chart_best_block = clearfixes[1].at_css('~ div')
+          chart_score = strip(chart_best_block.at_css('.music_score_block:nth-of-type(1)')).to_f
+          chart_deluxe_scores = scan_int(strip(chart_best_block.at_css('.music_score_block:nth-of-type(2)')))
+          chart_deluxe_grade_elm = chart_best_block.at_css('.music_score_block:nth-of-type(2) img:nth-child(2)')
+          record_deluxe_grade = chart_deluxe_grade_elm ?
+            Pathname(src(chart_deluxe_grade_elm))&.sub_ext('')&.sub(/.+_/, '')&.basename&.to_s.to_i :
+            0
+
+          difficulty_data[difficulty.abbrev].tap do |d|
+            d[:record] = Model::Record::Score.new(
+              score: chart_score,
+              deluxe_score: Model::Result::Progress.new(%i(value max).zip(chart_deluxe_scores).to_h),
+              grade: record_grade,
+              deluxe_grade: record_deluxe_grade,
+              flags: [record_flag, record_sync_flag].compact,
+            )
+            d[:history] = Model::Record::History.new(
+              play_count: total_play_count,
+              last_played: last_played_date,
+            )
+          end
+        end
+
+        difficulty_data.each do |abbrev, data|
+          difficulty = Difficulty(abbrev: abbrev)
+
+          chart_records[abbrev] = Model::Record::ChartRecord.new(**data)
+        end
+
+        Model::Record::Data.new(
+          info: song_info,
+          charts: chart_records,
+        )
       end
     end
 
