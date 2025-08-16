@@ -71,7 +71,7 @@ module MaimaiNet
       STAT_FIELDS = {
         ranks: [
           %i(count_s count_sp count_ss count_ssp count_sss count_sssp),
-          %i(s sp ss ssp sss sssp),
+          %i(s s+ ss ss+ sss sss+),
         ],
         dx_ranks: [
           Array.new(5) do |i| :"count_dx#{i.succ}" end,
@@ -262,7 +262,7 @@ module MaimaiNet
       STAT_FIELDS = {
         ranks: [
           %i(count_s count_sp count_ss count_ssp count_sss count_max),
-          %i(s sp ss ssp sss max),
+          %i(s s+ ss ss+ sss max),
         ],
         flags: [
           %i(count_fc count_gfc count_ap),
