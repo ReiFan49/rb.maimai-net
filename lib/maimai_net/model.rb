@@ -15,7 +15,7 @@ module MaimaiNet
           end.keys
 
           missing_keys = keys - (kwargs.keys | optional_keys)
-          fail KeyError, "#{missing_keys.join(', ')} not defined" unless missing_keys.empty?
+          fail KeyError, "#{missing_keys.join(', ')} is not defined for #{self.class}" unless missing_keys.empty?
           kwargs.each do |key, value|
             fail KeyError, "#{key} is not defined as struct member" unless keys.include?(key)
             fail TypeError, "#{key} type mismatch, given #{value.class}, expected #{props[key][:class]}" unless props[key][:class] === value
