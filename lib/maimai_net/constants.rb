@@ -10,7 +10,7 @@ module MaimaiNet
         master:   5,
         remaster: 6,
         utage:    10,
-      }.freeze
+      }
 
       DELUXE = {
         all:      0,
@@ -20,7 +20,7 @@ module MaimaiNet
         master:   4,
         remaster: 5,
         utage:    10,
-      }.freeze
+      }
 
       DELUXE_WEBSITE = {
         all:      99,
@@ -30,7 +30,7 @@ module MaimaiNet
         master:   3,
         remaster: 4,
         utage:    10,
-      }.freeze
+      }
 
       LIBRARY = {
         all:      0,
@@ -41,7 +41,7 @@ module MaimaiNet
         master:   5,
         remaster: 6,
         utage:    10,
-      }.freeze
+      }
 
       SHORTS = {
         easy:     :EM,
@@ -50,7 +50,7 @@ module MaimaiNet
         expert:   :EX,
         master:   :MS,
         remaster: :RMS,
-      }.freeze
+      }
 
       include CoreExt
 
@@ -77,9 +77,12 @@ module MaimaiNet
       VALID_ATTRIBUTES = instance_methods(false)
         .map(&method(:instance_method))
         .map(&:original_name)
-        .sort.uniq.freeze
+        .sort.uniq
 
       undef_method :clone, :dup
+
+      constants.map(&method(:const_get))
+        .map(&:freeze)
 
       class << self
         def new(key)
