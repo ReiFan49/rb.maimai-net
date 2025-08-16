@@ -166,6 +166,42 @@ module MaimaiNet
         alias to_i value
         alias inspect to_s
       end
+
+      TourMember = Base::Struct.new(
+        icon: URI::Generic,
+        grade: Integer,
+        level: Integer,
+      )
+
+      Judgment = Base::Struct.new(
+        just: Integer,
+        perfect: Integer,
+        great: Integer,
+        good: Integer,
+        miss: Integer,
+      )
+
+      Offset = Base::Struct.new(
+        early: Integer,
+        late: Integer,
+      )
+
+      Score = Base::Struct.new(
+        score: Float,
+        deluxe_score: Progress,
+        combo: Progress,
+        sync_score: Progress,
+        grade: Symbol,
+        flags: Generic[Array, Symbol],
+      )
+
+      Data = Base::Struct.new(
+        info: Chart::Info,
+        score: Score,
+        breakdown: Generic[Hash, Symbol, Judgment],
+        timing: Offset,
+        members: Generic[Array, TourMember],
+      )
     end
 
     module Record

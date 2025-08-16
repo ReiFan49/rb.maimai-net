@@ -208,7 +208,11 @@ module MaimaiNet
           chart_record_block = clearfixes[0].at_css('~ div:nth-of-type(2)')
           record_grade, record_flag, record_sync_flag = chart_record_block.css('> img').map do |elm|
             value = Pathname(URI(src(elm)).path).sub_ext('')&.sub(/.+_/, '')&.basename.to_s
-            value == 'back' ? nil : value.to_sym
+            case value
+            when 'back'; nil
+            when *MaimaiNet::AchievementFlag::RECORD.values; MaimaiNet::AchievementFlag.new(record_key: value)
+            else value.to_sym
+            end
           end
           last_played_date, total_play_count = chart_record_block.css('table tr td:nth-of-type(2)').zip([
             ->(content){Time.strptime(content + ' +09:00', '%Y/%m/%d %H:%M %z')},
@@ -232,7 +236,7 @@ module MaimaiNet
               deluxe_score: Model::Result::Progress.new(%i(value max).zip(chart_deluxe_scores).to_h),
               grade: record_grade,
               deluxe_grade: record_deluxe_grade,
-              flags: [record_flag, record_sync_flag].compact,
+              flags: [record_flag, record_sync_flag].compact.map(&:to_sym),
             )
             d[:history] = Model::Record::History.new(
               play_count: total_play_count,
@@ -250,6 +254,96 @@ module MaimaiNet
         Model::Record::Data.new(
           info: song_info,
           charts: chart_records,
+        )
+      end
+    end
+
+    class TrackResult < Base
+      def initialize_extension
+        super
+
+        start_anchor = @root.at_css('img.title')
+        @score_block = start_anchor.at_css('~ div:nth-of-type(1)')
+        @breakdown_block = start_anchor.at_css('~ div:nth-of-type(2)')
+      end
+
+      helper_method :data do
+        header_block = @score_block.at_css('.playlog_top_container')
+        info_block = @score_block.at_css('.playlog_master_container')
+        chart_header_block = info_block.at_css('.basic_block')
+        result_block = info_block.at_css('.basic_block ~ div:nth-of-type(1)')
+
+        difficulty = Difficulty(Pathname(src(header_block.at_css('img.playlog_diff'))).sub_ext('').sub(/.+_/, '').basename)
+        track_order =  get_fullint(strip(header_block.at_css('div.sub_title > span:nth-of-type(1)')))
+        play_time = Time.strptime(
+          strip(header_block.at_css('div.sub_title > span:nth-of-type(2)')) + ' +09:00',
+          '%Y/%m/%d %H:%M %z',
+        )
+        song_name = strip(chart_header_block.children.last)
+        chart_level = strip(chart_header_block.at_css('div:nth-of-type(1)'))
+        song_jacket = src(result_block.at_css('img.music_img'))
+        chart_type = Pathname(src(result_block.at_css('img.playlog_music_kind_icon')))&.sub_ext('')&.sub(/.+_/, '')&.basename&.to_s
+
+        result_score = strip(result_block.at_css('.playlog_achievement_txt')).to_f
+        result_deluxe_scores = scan_int(strip(result_block.at_css('.playlog_result_innerblock .playlog_score_block div:nth-of-type(1)')))
+        result_grade = Pathname(URI(src(result_block.at_css('.playlog_scorerank'))).path).sub_ext('')&.sub(/.+_/, '')&.basename.to_s.to_sym
+        result_flags = result_block.css('.playlog_result_innerblock > img').map do |elm|
+          flag = Pathname(URI(src(elm)).path).sub_ext('')&.basename.to_s
+          case flag
+          when *MaimaiNet::AchievementFlag::RESULT.values; MaimaiNet::AchievementFlag.new(result_key: flag)
+          when /_dummy$/; nil
+          end
+        end.compact
+        result_breakdown = @breakdown_block.css('table.playlog_notes_detail tr:not(:first-child)').map do |row|
+          key = Pathname(URI(src(row.at_css('th img'))).path).sub_ext('').basename.to_s.to_sym
+          values = Model::Result::Judgment.new(**Model::Result::Judgment.members.zip(
+            row.css('td').map(&method(:strip)).map(&method(:get_int))
+          ).to_h)
+
+          [key, values]
+        end.to_h
+        result_offset_breakdown = @breakdown_block.css('.playlog_fl_block > div').map do |elm|
+          get_int(strip(elm))
+        end
+        result_rating_after = int(strip(@breakdown_block.at_css('.playlog_rating_detail_block > div:nth-of-type(1) .rating_block')))
+        result_rating_delta = int(strip(@breakdown_block.at_css('.playlog_rating_detail_block > div:nth-of-type(2)')))
+        result_combos, result_sync_scores = @breakdown_block.css('.playlog_score_block').map do |elm|
+          scan_int(strip(elm)).tap do |ary| ary.fill(0, ary.size...2) end
+        end
+
+        result_tour_members = @breakdown_block.css('.playlog_chara_container').map do |chara_block|
+          Model::Result::TourMember.new(
+            icon: URI(src(chara_block.at_css('.chara_cycle_img'))),
+            grade: get_int(strip(chara_block.at_css('.collection_chara_awakening_block_txt'))),
+            level: get_int(strip(chara_block.at_css('.playlog_chara_lv_block'))),
+          )
+        end
+
+        chart_web_id = @root.at_css('form[action$="/record/musicDetail/"] input[name=idx]')['value']
+
+        chart_info = Model::Chart::Info.new(
+          web_id: Model::Chart::WebID.parse(chart_web_id),
+          title: song_name,
+          type: chart_type,
+          difficulty: difficulty.id,
+          level_text: chart_level,
+        )
+
+        score_info = Model::Result::Score.new(
+          score: result_score,
+          deluxe_score: Model::Result::Progress.new(**%i(value max).zip(result_deluxe_scores).to_h),
+          combo: Model::Result::Progress.new(**%i(value max).zip(result_combos).to_h),
+          sync_score: Model::Result::Progress.new(**%i(value max).zip(result_sync_scores).to_h),
+          grade: result_grade,
+          flags: result_flags.map(&:to_sym),
+        )
+
+        Model::Result::Data.new(
+          info: chart_info,
+          score: score_info,
+          breakdown: result_breakdown,
+          timing: Model::Result::Offset.new(**Model::Result::Offset.members.zip(result_offset_breakdown).to_h),
+          members: result_tour_members,
         )
       end
     end
