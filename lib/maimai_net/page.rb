@@ -185,9 +185,14 @@ module MaimaiNet
 
         info_blocks.each do |info_block|
           level_text = strip(info_block.at_css('.music_lv_back'))
-          difficulty = Difficulty(deluxe_web_id: info_block.at_css('form input[type=hidden][name=diff]')['value'].to_i)
+          form_block = info_block.at_css('form')
+          form_inputs = form_block.css('input[name][type=hidden]').map do |elm|
+            [elm['name'].to_sym, elm['value']]
+          end.to_h
+          difficulty = Difficulty(deluxe_web_id: form_inputs[:diff].to_i)
           difficulty_data[difficulty.abbrev] ||= {}
           difficulty_data[difficulty.abbrev].store(:info, Model::Chart::Info.new(
+            web_id:     Model::Chart::WebID.parse(form_inputs[:idx]),
             title:      song_name,
             type:       set_type,
             difficulty: difficulty.id,
@@ -222,6 +227,7 @@ module MaimaiNet
 
           difficulty_data[difficulty.abbrev].tap do |d|
             d[:record] = Model::Record::Score.new(
+              web_id: d[:info].web_id,
               score: chart_score,
               deluxe_score: Model::Result::Progress.new(%i(value max).zip(chart_deluxe_scores).to_h),
               grade: record_grade,
