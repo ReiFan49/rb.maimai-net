@@ -67,7 +67,7 @@ module MaimaiNet
 
     module PlayerData
       Decoration = Base::Struct.new(
-        icon: String,
+        icon: URI::Generic,
       )
       ExtendedInfo = Base::Struct.new(
         rating: Integer,
@@ -120,13 +120,13 @@ module MaimaiNet
         title: String,
         artist: String,
         genre: String,
-        jacket: String,
+        jacket: URI::Generic,
       )
     end
 
     PhotoUpload = Base::Struct.new(
       info: Chart::InfoLite,
-      url: String,
+      url: URI::Generic,
       location: String,
       time: Time,
     )
@@ -170,9 +170,9 @@ module MaimaiNet
 
     module FinaleArchive
       Decoration = Base::Struct.new(
-        icon: String,
-        player_frame: String,
-        nameplate: String,
+        icon: URI::Generic,
+        player_frame: URI::Generic,
+        nameplate: URI::Generic,
       )
       Currency = Base::Struct.new(
         amount: Integer, piece: Integer, parts: Integer,

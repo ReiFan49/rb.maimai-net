@@ -115,7 +115,7 @@ module MaimaiNet
               grade: src(@player_block.at_css('> div > .clearfix ~ img:nth-of-type(1)')),
             ),
             decoration: Model::PlayerData::Decoration.new(
-              icon: src(@player_block.at_css('> img:nth-of-type(1)'))
+              icon: URI(src(@player_block.at_css('> img:nth-of-type(1)'))),
             ),
             extended: Model::PlayerData::ExtendedInfo.new(
               rating: get_int(strip(@player_block.at_css('.rating_block'))),
@@ -143,7 +143,7 @@ module MaimaiNet
               type: chart_type.to_s,
               difficulty: difficulty.id,
             ),
-            url: src(elm.at_css('> img:nth-of-type(3)')),
+            url: URI(src(elm.at_css('> img:nth-of-type(3)'))),
             location: strip(elm.at_css('> div:not(.clearfix):nth-of-type(4)')),
             time: Time.strptime(
               strip(elm.at_css('> div:not(.clearfix):nth-of-type(1)')) + ' +09:00',
@@ -165,7 +165,7 @@ module MaimaiNet
       helper_method :data do
         song_info_elm = @summary_block.at_css('> div:nth-of-type(1)')
 
-        song_jacket = src(@summary_block.at_css('> img:nth-of-type(1)'))
+        song_jacket = URI(src(@summary_block.at_css('> img:nth-of-type(1)')))
         set_type = Pathname(src(song_info_elm.at_css('> div:nth-of-type(1) > img'))).sub_ext('').sub(/.+_/, '').basename.to_s
         song_genre = strip(song_info_elm.at_css('> div:nth-of-type(1)'))
         song_name = strip(song_info_elm.at_css('> div:nth-of-type(2)'))
@@ -330,9 +330,9 @@ module MaimaiNet
             grade: src(@player_block.at_css('.finale_grade')),
           ),
           decoration: Model::FinaleArchive::Decoration.new(
-            icon:         src(@player_block.at_css('.finale_icon')),
-            player_frame: user_block_image,
-            nameplate:    src(@player_block.at_css('.finale_nameplate')),
+            icon:         URI(src(@player_block.at_css('.finale_icon'))),
+            player_frame: URI(user_block_image),
+            nameplate:    URI(src(@player_block.at_css('.finale_nameplate'))),
           ),
           extended: Model::FinaleArchive::ExtendedInfo.new(
             rating:         user_rating_current,
