@@ -109,11 +109,18 @@ module MaimaiNet
         def to_str
           self.item_hash + [[self.item_key].pack('H*')].pack('m0')
         end
+        alias to_s to_str
       end
 
       class WebID
         DUMMY_ID = -('0' * 128 + 'A' * 44)
         DUMMY = parse(DUMMY_ID)
+        def DUMMY.inspect
+          '#<%s %s>' % [
+            self.class,
+            -'dummy',
+          ]
+        end
       end
 
       info_base = {
