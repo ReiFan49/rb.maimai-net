@@ -476,8 +476,8 @@ module MaimaiNet
         middlewares.each do |middleware|
           if Symbol === middleware then
             [Faraday::Request, Faraday::Response, Faraday::Middleware].map do |mod|
-              mod.lookup_middleware(middleware)
-            end.compact.tap do |result|
+              mod.registered_middleware[middleware]
+            end.compact.first.tap do |result|
               fail ArgumentError, "#{middleware} is not registered" if result.nil?
               middleware = result
             end
