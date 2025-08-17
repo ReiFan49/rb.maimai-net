@@ -52,6 +52,7 @@ module MaimaiNet
 
     require 'maimai_net/page-html_helper'
     require 'maimai_net/page-player_data_helper'
+    require 'maimai_net/page-track_result_helper'
 
     class PlayerData < Base
       STAT_KEYS = %i(
@@ -268,32 +269,6 @@ module MaimaiNet
       end
 
       helper_method :data do
-        header_block = @score_block.at_css('.playlog_top_container')
-        info_block = @score_block.at_css('.playlog_master_container')
-        chart_header_block = info_block.at_css('.basic_block')
-        result_block = info_block.at_css('.basic_block ~ div:nth-of-type(1)')
-
-        difficulty = Difficulty(Pathname(src(header_block.at_css('img.playlog_diff'))).sub_ext('').sub(/.+_/, '').basename)
-        track_order =  get_fullint(strip(header_block.at_css('div.sub_title > span:nth-of-type(1)')))
-        play_time = Time.strptime(
-          strip(header_block.at_css('div.sub_title > span:nth-of-type(2)')) + ' +09:00',
-          '%Y/%m/%d %H:%M %z',
-        )
-        song_name = strip(chart_header_block.children.last)
-        chart_level = strip(chart_header_block.at_css('div:nth-of-type(1)'))
-        song_jacket = src(result_block.at_css('img.music_img'))
-        chart_type = Pathname(src(result_block.at_css('img.playlog_music_kind_icon')))&.sub_ext('')&.sub(/.+_/, '')&.basename&.to_s
-
-        result_score = strip(result_block.at_css('.playlog_achievement_txt')).to_f
-        result_deluxe_scores = scan_int(strip(result_block.at_css('.playlog_result_innerblock .playlog_score_block div:nth-of-type(1)')))
-        result_grade = Pathname(URI(src(result_block.at_css('.playlog_scorerank'))).path).sub_ext('')&.sub(/.+_/, '')&.basename.to_s.to_sym
-        result_flags = result_block.css('.playlog_result_innerblock > img').map do |elm|
-          flag = Pathname(URI(src(elm)).path).sub_ext('')&.basename.to_s
-          case flag
-          when *MaimaiNet::AchievementFlag::RESULT.values; MaimaiNet::AchievementFlag.new(result_key: flag)
-          when /_dummy$/; nil
-          end
-        end.compact
         result_breakdown = @breakdown_block.css('table.playlog_notes_detail tr:not(:first-child)').map do |row|
           key = Pathname(URI(src(row.at_css('th img'))).path).sub_ext('').basename.to_s.to_sym
           values = Model::Result::Judgment.new(**Model::Result::Judgment.members.zip(
@@ -319,28 +294,15 @@ module MaimaiNet
           )
         end
 
-        chart_web_id = @root.at_css('form[action$="/record/musicDetail/"] input[name=idx]')['value']
-
-        chart_info = Model::Chart::Info.new(
-          web_id: Model::Chart::WebID.parse(chart_web_id),
-          title: song_name,
-          type: chart_type,
-          difficulty: difficulty.id,
-          level_text: chart_level,
-        )
-
-        score_info = Model::Result::Score.new(
-          score: result_score,
-          deluxe_score: Model::Result::Progress.new(**%i(value max).zip(result_deluxe_scores).to_h),
-          combo: Model::Result::Progress.new(**%i(value max).zip(result_combos).to_h),
-          sync_score: Model::Result::Progress.new(**%i(value max).zip(result_sync_scores).to_h),
-          grade: result_grade,
-          flags: result_flags.map(&:to_sym),
-        )
+        chart_web_id = Model::Chart::WebID.parse(@root.at_css('form[action$="/record/musicDetail/"] input[name=idx]')['value'])
 
         Model::Result::Data.new(
-          info: chart_info,
-          score: score_info,
+          track: TrackResultHelper.process(
+            @score_block,
+            web_id: chart_web_id,
+            result_combo: result_combos,
+            result_sync_score: result_sync_scores,
+          ),
           breakdown: result_breakdown,
           timing: Model::Result::Offset.new(**Model::Result::Offset.members.zip(result_offset_breakdown).to_h),
           members: result_tour_members,

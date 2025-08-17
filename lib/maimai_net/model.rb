@@ -195,6 +195,13 @@ module MaimaiNet
         late: Integer,
       )
 
+      ScoreLite = Base::Struct.new(
+        score: Float,
+        deluxe_score: Progress,
+        grade: Symbol,
+        flags: Generic[Array, Symbol],
+      )
+
       Score = Base::Struct.new(
         score: Float,
         deluxe_score: Progress,
@@ -204,9 +211,15 @@ module MaimaiNet
         flags: Generic[Array, Symbol],
       )
 
-      Data = Base::Struct.new(
+      Track = Base::Struct.new(
         info: Chart::Info,
-        score: Score,
+        score: Either[Score, ScoreLite],
+        order: Integer,
+        time: Time,
+      )
+
+      Data = Base::Struct.new(
+        track: Track,
         breakdown: Generic[Hash, Symbol, Judgment],
         timing: Offset,
         members: Generic[Array, TourMember],
