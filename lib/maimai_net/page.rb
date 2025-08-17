@@ -320,7 +320,7 @@ module MaimaiNet
             track: TrackResultHelper.process(elm),
             ref_web_id: ref_web_id,
           )
-        end
+        end.sort_by do |track_ref| track_ref.ref_web_id.time end
       end
     end
 
