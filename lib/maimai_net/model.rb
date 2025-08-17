@@ -5,6 +5,7 @@ module MaimaiNet
 
     module Base
       class Struct < ::Struct
+        using GenericComparison
         # @param kwargs [Hash] options are strong-typed based on class definition
         def initialize(**kwargs)
           props = self.class.instance_variable_get(:@_properties)
@@ -18,7 +19,8 @@ module MaimaiNet
           fail KeyError, "#{missing_keys.join(', ')} is not defined for #{self.class}" unless missing_keys.empty?
           kwargs.each do |key, value|
             fail KeyError, "#{key} is not defined as struct member" unless keys.include?(key)
-            fail TypeError, "#{key} type mismatch, given #{value.class}, expected #{props[key][:class]}" unless props[key][:class] === value
+            class_str = value.respond_to?(:map_class) ? value.map_class : value.class
+            fail TypeError, "#{key} type mismatch, given #{class_str}, expected #{props[key][:class]}" unless props[key][:class] === value
           end
 
           args = kwargs.values_at(*keys)

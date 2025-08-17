@@ -4,6 +4,10 @@ module MaimaiNet::Model
       def generic_of?(variants)
         each_with_index.all? do |val, i| variants[i % variants.size] === val end
       end
+
+      def map_class
+        empty? ? self.class : Generic[self.class, Either[*map(&:class)]]
+      end
     end
 
     refine Hash do
@@ -11,6 +15,15 @@ module MaimaiNet::Model
         [keys, values].each_with_index.all? do |li, i|
           li.all? do |val| variants[i % variants.size] === val end
         end
+      end
+
+      def map_class
+        empty? ?
+          self.class :
+          Generic[
+            self.class,
+            *([keys, values].map do |li| Either[*li.map(&:class)] end),
+          ]
       end
     end
   end
