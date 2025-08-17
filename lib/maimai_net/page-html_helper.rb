@@ -5,7 +5,7 @@ module MaimaiNet
 
     # @!api private
     # scope extension to add various html-related method
-    class HelperBlock < ::BasicObject
+    class HelperBlock # < ::BasicObject
       include CoreExt
 
       # copies page instance variables
