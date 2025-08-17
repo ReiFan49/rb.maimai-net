@@ -5,7 +5,7 @@ module MaimaiNet
 
     # @!api private
     # scope extension to add various html-related method
-    class HelperBlock < ::BasicObject
+    class HelperBlock # < ::BasicObject
       include CoreExt
 
       # copies page instance variables
@@ -36,7 +36,8 @@ module MaimaiNet
         super or @_page.respond_to?(meth, priv)
       end
 
-      GROUPED_INTEGER = /0|[1-9](?:[0-9]*(?:,[0-9]+)*)/
+      GROUPED_INTEGER = /0|[1-9](?:[0-9]*(?:,[0-9]+)*)/.freeze
+      GROUPED_FREE_INTEGER = /\d+(?:,\d+)*/.freeze
 
       [[::Kernel, %i(method)]].each do |cls, methods|
         methods.each do |meth|
@@ -56,6 +57,9 @@ module MaimaiNet
       # @return [Integer]
       # @see #int
       def get_int(content); int(GROUPED_INTEGER.match(content).to_s); end
+      # (see #get_int)
+      # @note This version retrieves potentially padded integer as well.
+      def get_fullint(content); int(GROUPED_FREE_INTEGER.match(content).to_s); end
       # scan for all number-string found on given string
       # and de-group all of the string into array of integers
       # @return [Array<Integer>]

@@ -52,6 +52,7 @@ module MaimaiNet
 
     require 'maimai_net/page-html_helper'
     require 'maimai_net/page-player_data_helper'
+    require 'maimai_net/page-track_result_helper'
 
     class PlayerData < Base
       STAT_KEYS = %i(
@@ -71,7 +72,7 @@ module MaimaiNet
       STAT_FIELDS = {
         ranks: [
           %i(count_s count_sp count_ss count_ssp count_sss count_sssp),
-          %i(s sp ss ssp sss sssp),
+          %i(s s+ ss ss+ sss sss+),
         ],
         dx_ranks: [
           Array.new(5) do |i| :"count_dx#{i.succ}" end,
@@ -115,7 +116,7 @@ module MaimaiNet
               grade: src(@player_block.at_css('> div > .clearfix ~ img:nth-of-type(1)')),
             ),
             decoration: Model::PlayerData::Decoration.new(
-              icon: src(@player_block.at_css('> img:nth-of-type(1)'))
+              icon: URI(src(@player_block.at_css('> img:nth-of-type(1)'))),
             ),
             extended: Model::PlayerData::ExtendedInfo.new(
               rating: get_int(strip(@player_block.at_css('.rating_block'))),
@@ -138,16 +139,186 @@ module MaimaiNet
           difficulty = Difficulty(Pathname(src(elm.at_css('> img:nth-of-type(2)'))).sub_ext('').sub('diff_', '').basename)
 
           Model::PhotoUpload.new(
-            chart_type: chart_type.to_s,
-            difficulty: difficulty.id,
-            title: strip(elm.at_css('> div:not(.clearfix):nth-of-type(2)')),
-            url: src(elm.at_css('> img:nth-of-type(3)')),
+            info: Model::Chart::InfoLite.new(
+              title: strip(elm.at_css('> div:not(.clearfix):nth-of-type(2)')),
+              type: chart_type.to_s,
+              difficulty: difficulty.id,
+            ),
+            url: URI(src(elm.at_css('> img:nth-of-type(3)'))),
             location: strip(elm.at_css('> div:not(.clearfix):nth-of-type(4)')),
             time: Time.strptime(
               strip(elm.at_css('> div:not(.clearfix):nth-of-type(1)')) + ' +09:00',
               '%Y/%m/%d %H:%M %z',
               Time.now.localtime(32400),
             ),
+          )
+        end
+      end
+    end
+
+    class ChartsetRecord < Base
+      def initialize_extension
+        super
+
+        @summary_block = @root.at_css('.basic_block')
+      end
+
+      helper_method :data do
+        song_info_elm = @summary_block.at_css('> div:nth-of-type(1)')
+
+        song_jacket = URI(src(@summary_block.at_css('> img:nth-of-type(1)')))
+        set_type = Pathname(src(song_info_elm.at_css('> div:nth-of-type(1) > img'))).sub_ext('').sub(/.+_/, '').basename.to_s
+        song_genre = strip(song_info_elm.at_css('> div:nth-of-type(1)'))
+        song_name = strip(song_info_elm.at_css('> div:nth-of-type(2)'))
+        song_artist = strip(song_info_elm.at_css('> div:nth-of-type(3)'))
+
+        song_info = Model::Chart::Song.new(
+          title:  song_name,
+          artist: song_artist,
+          genre:  song_genre,
+          jacket: song_jacket,
+        )
+
+        chart_records = {}
+        difficulty_data = {}
+        info_blocks = @summary_block.css('table > tbody > tr:has(.music_lv_back):has(form input[type=hidden][name=diff])')
+        chart_score_blocks = @summary_block.css('~ div:has(~ img)')
+
+        info_blocks.each do |info_block|
+          level_text = strip(info_block.at_css('.music_lv_back'))
+          form_block = info_block.at_css('form')
+          form_inputs = form_block.css('input[name][type=hidden]').map do |elm|
+            [elm['name'].to_sym, elm['value']]
+          end.to_h
+          difficulty = Difficulty(deluxe_web_id: form_inputs[:diff].to_i)
+          difficulty_data[difficulty.abbrev] ||= {}
+          difficulty_data[difficulty.abbrev].store(:info, Model::Chart::Info.new(
+            web_id:     Model::Chart::WebID.parse(form_inputs[:idx]),
+            title:      song_name,
+            type:       set_type,
+            difficulty: difficulty.id,
+            level_text: level_text,
+          ))
+        end
+
+        chart_score_blocks.each do |chart_score_block|
+          difficulty = Difficulty(Pathname(src(chart_score_block.at_css('> img:nth-of-type(1)'))).sub_ext('').sub(/.+_/, '').basename)
+          chart_type = Pathname(src(chart_score_block.at_css('> img:nth-of-type(2)')))&.sub_ext('')&.sub(/.+_/, '')&.basename&.to_s or set_type
+          clearfixes = chart_score_block.css('.clearfix')
+
+          chart_record_block = clearfixes[0].at_css('~ div:nth-of-type(2)')
+          record_grade, record_flag, record_sync_flag = chart_record_block.css('> img').map do |elm|
+            value = Pathname(URI(src(elm)).path).sub_ext('')&.sub(/.+_/, '')&.basename.to_s
+            case value
+            when 'back'; nil
+            when *MaimaiNet::AchievementFlag::RECORD.values; MaimaiNet::AchievementFlag.new(record_key: value)
+            else value.to_sym
+            end
+          end
+          last_played_date, total_play_count = chart_record_block.css('table tr td:nth-of-type(2)').zip([
+            ->(content){Time.strptime(content + ' +09:00', '%Y/%m/%d %H:%M %z')},
+            method(:int),
+          ]).map do |elm, block|
+            block.call(strip(elm))
+          end
+
+          chart_best_block = clearfixes[1].at_css('~ div')
+          chart_score = strip(chart_best_block.at_css('.music_score_block:nth-of-type(1)')).to_f
+          chart_deluxe_scores = scan_int(strip(chart_best_block.at_css('.music_score_block:nth-of-type(2)')))
+          chart_deluxe_grade_elm = chart_best_block.at_css('.music_score_block:nth-of-type(2) img:nth-child(2)')
+          record_deluxe_grade = chart_deluxe_grade_elm ?
+            Pathname(src(chart_deluxe_grade_elm))&.sub_ext('')&.sub(/.+_/, '')&.basename&.to_s.to_i :
+            0
+
+          difficulty_data[difficulty.abbrev].tap do |d|
+            d[:record] = Model::Record::Score.new(
+              web_id: d[:info].web_id,
+              score: chart_score,
+              deluxe_score: Model::Result::Progress.new(%i(value max).zip(chart_deluxe_scores).to_h),
+              grade: record_grade,
+              deluxe_grade: record_deluxe_grade,
+              flags: [record_flag, record_sync_flag].compact.map(&:to_sym),
+            )
+            d[:history] = Model::Record::History.new(
+              play_count: total_play_count,
+              last_played: last_played_date,
+            )
+          end
+        end
+
+        difficulty_data.each do |abbrev, data|
+          difficulty = Difficulty(abbrev: abbrev)
+
+          chart_records[abbrev] = Model::Record::ChartRecord.new(**data)
+        end
+
+        Model::Record::Data.new(
+          info: song_info,
+          charts: chart_records,
+        )
+      end
+    end
+
+    class TrackResult < Base
+      def initialize_extension
+        super
+
+        start_anchor = @root.at_css('img.title')
+        @score_block = start_anchor.at_css('~ div:nth-of-type(1)')
+        @breakdown_block = start_anchor.at_css('~ div:nth-of-type(2)')
+      end
+
+      helper_method :data do
+        result_breakdown = @breakdown_block.css('table.playlog_notes_detail tr:not(:first-child)').map do |row|
+          key = Pathname(URI(src(row.at_css('th img'))).path).sub_ext('').basename.to_s.to_sym
+          values = Model::Result::Judgment.new(**Model::Result::Judgment.members.zip(
+            row.css('td').map(&method(:strip)).map(&method(:get_int))
+          ).to_h)
+
+          [key, values]
+        end.to_h
+        result_offset_breakdown = @breakdown_block.css('.playlog_fl_block > div').map do |elm|
+          get_int(strip(elm))
+        end
+        result_rating_after = int(strip(@breakdown_block.at_css('.playlog_rating_detail_block > div:nth-of-type(1) .rating_block')))
+        result_rating_delta = int(strip(@breakdown_block.at_css('.playlog_rating_detail_block > div:nth-of-type(2)')))
+        result_combos, result_sync_scores = @breakdown_block.css('.playlog_score_block').map do |elm|
+          scan_int(strip(elm)).tap do |ary| ary.fill(0, ary.size...2) end
+        end
+
+        result_tour_members = @breakdown_block.css('.playlog_chara_container').map do |chara_block|
+          Model::Result::TourMember.new(
+            icon: URI(src(chara_block.at_css('.chara_cycle_img'))),
+            grade: get_int(strip(chara_block.at_css('.collection_chara_awakening_block_txt'))),
+            level: get_int(strip(chara_block.at_css('.playlog_chara_lv_block'))),
+          )
+        end
+
+        chart_web_id = Model::Chart::WebID.parse(@root.at_css('form[action$="/record/musicDetail/"] input[name=idx]')['value'])
+
+        Model::Result::Data.new(
+          track: TrackResultHelper.process(
+            @score_block,
+            web_id: chart_web_id,
+            result_combo: result_combos,
+            result_sync_score: result_sync_scores,
+          ),
+          breakdown: result_breakdown,
+          timing: Model::Result::Offset.new(**Model::Result::Offset.members.zip(result_offset_breakdown).to_h),
+          members: result_tour_members,
+        )
+      end
+    end
+
+    class RecentTrack < Base
+      helper_method :data do
+        track_blocks = @root.css('img.title ~ div')
+
+        track_blocks.map do |elm|
+          ref_web_id = Model::Result::ReferenceWebID.parse(elm.at_css('form input[type=hidden][name=idx]')['value'])
+          Model::Result::TrackReference.new(
+            track: TrackResultHelper.process(elm),
+            ref_web_id: ref_web_id,
           )
         end
       end
@@ -167,7 +338,7 @@ module MaimaiNet
       STAT_FIELDS = {
         ranks: [
           %i(count_s count_sp count_ss count_ssp count_sss count_max),
-          %i(s sp ss ssp sss max),
+          %i(s s+ ss ss+ sss max),
         ],
         flags: [
           %i(count_fc count_gfc count_ap),
@@ -235,9 +406,9 @@ module MaimaiNet
             grade: src(@player_block.at_css('.finale_grade')),
           ),
           decoration: Model::FinaleArchive::Decoration.new(
-            icon:         src(@player_block.at_css('.finale_icon')),
-            player_frame: user_block_image,
-            nameplate:    src(@player_block.at_css('.finale_nameplate')),
+            icon:         URI(src(@player_block.at_css('.finale_icon'))),
+            player_frame: URI(user_block_image),
+            nameplate:    URI(src(@player_block.at_css('.finale_nameplate'))),
           ),
           extended: Model::FinaleArchive::ExtendedInfo.new(
             rating:         user_rating_current,

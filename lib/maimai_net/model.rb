@@ -1,86 +1,26 @@
 module MaimaiNet
   # data model used for parsed data from MaimaiNet::Page
   module Model
-    # @!api private
-    # defines a generic typing
-    class Generic
-      include CoreExt::MethodCache
-
-      def initialize(cls, variants)
-        @class    = cls
-        @variants = variants.freeze
-        freeze
-      end
-
-      cache_method :hash do
-        [@class, *@variants].inject(0) do |hsh, type|
-          ((hsh >> 11) | type.hash) % (1 << (0.size << 3))
-        end
-      end
-
-      def ===(obj)
-        class_match    = @class === obj
-        internal_match = if ::Array == @class then
-                           obj.each_with_index.all? do |val, i| variants[i % variants.size] === val end
-                         elsif ::Hash == @class then
-                           [obj.keys, obj.values].each_with_index.all? do |li, i|
-                             li.all? do |val| variants[i % variants.size] === val end
-                           end
-                         else
-                           fail NotImplementedError, "#{obj.class} does not support generic" unless obj.respond_to?(:generic_of?)
-                           obj.generic_of?(variants)
-                         end
-
-        class_match && internal_match
-      end
-
-      def to_s
-        "%s[%s]" % [
-          to_class.name,
-          variants.join(', '),
-        ]
-      end
-      alias inspect to_s
-
-      def to_class
-        @class
-      end
-      def variants
-        @variants
-      end
-
-      class << self
-        private :new
-
-        # defines a generic class statement
-        # @return [Generic]
-        def [](cls, *variants)
-          fail ArgumentError, 'no variants given' if variants.empty?
-          fail ArgumentError, 'variants must be a module or class' if variants.any? do |var| !(Module === var) end
-
-          @_list ||= {}
-          gen = @_list.fetch(cls, []).find do |gen_| gen_.variants.eql?(variants) end
-          return gen unless gen.nil?
-
-          gen = new(cls, variants)
-          (@_list[cls] ||= []) << gen
-          gen
-        end
-      end
-    end
+    require 'maimai_net/model-typing'
 
     module Base
       class Struct < ::Struct
+        using GenericComparison
         # @param kwargs [Hash] options are strong-typed based on class definition
         def initialize(**kwargs)
           props = self.class.instance_variable_get(:@_properties)
           keys = props.keys
+          optional_keys = props.select do |k, pr|
+            Either === pr[:class] &&
+            pr[:class].variants.include?(NilClass)
+          end.keys
 
-          missing_keys = keys - kwargs.keys
-          fail KeyError, "#{missing_keys.join(', ')} not defined" unless missing_keys.empty?
+          missing_keys = keys - (kwargs.keys | optional_keys)
+          fail KeyError, "#{missing_keys.join(', ')} is not defined for #{self.class}" unless missing_keys.empty?
           kwargs.each do |key, value|
             fail KeyError, "#{key} is not defined as struct member" unless keys.include?(key)
-            fail TypeError, "#{key} type mismatch, given #{value.class}, expected #{props[key][:class]}" unless props[key][:class] === value
+            class_str = value.respond_to?(:map_class) ? value.map_class : value.class
+            fail TypeError, "#{key} type mismatch, given #{class_str}, expected #{props[key][:class]}" unless props[key][:class] === value
           end
 
           args = kwargs.values_at(*keys)
@@ -99,7 +39,7 @@ module MaimaiNet
               @_properties[key] = case typedata
                                   when Array
                                     {class: Generic[*typedata]}
-                                  when Module, Generic
+                                  when Module, Variant
                                     {class: typedata}
                                   else
                                     fail TypeError, "invalid type definition"
@@ -129,7 +69,7 @@ module MaimaiNet
 
     module PlayerData
       Decoration = Base::Struct.new(
-        icon: String,
+        icon: URI::Generic,
       )
       ExtendedInfo = Base::Struct.new(
         rating: Integer,
@@ -156,20 +96,188 @@ module MaimaiNet
       )
     end
 
+    module Chart
+      WebID = Base::Struct.new(
+        item_hash: String,
+        item_key: String,
+      ) do
+        def self.parse(s)
+          hash, key = s[0, 128].b, s[128, s.size - 128].unpack1('m*').unpack1('H*')
+          new(item_hash: -hash, item_key: -key)
+        end
+
+        def to_str
+          self.item_hash + [[self.item_key].pack('H*')].pack('m0')
+        end
+        alias to_s to_str
+      end
+
+      class WebID
+        DUMMY_ID = -('0' * 128 + 'A' * 44)
+        DUMMY = parse(DUMMY_ID)
+        def DUMMY.inspect
+          '#<%s %s>' % [
+            self.class,
+            -'dummy',
+          ]
+        end
+      end
+
+      info_base = {
+        title: String,
+        type: String,
+        difficulty: Integer,
+      }
+
+      InfoLite = Base::Struct.new(**info_base) do
+        def to_info(level_text: '?')
+          Info.new(
+            web_id: WebID::DUMMY,
+            title: title,
+            type: type,
+            difficulty: difficulty,
+            level_text: level_text,
+          )
+        end
+      end
+
+      Info = Base::Struct.new(
+        web_id: WebID,
+        **info_base,
+        level_text: String,
+      ) do
+        def to_lite
+          InfoLite.new(title: title, type: type, difficulty: difficulty)
+        end
+      end
+
+      Song = Base::Struct.new(
+        title: String,
+        artist: String,
+        genre: String,
+        jacket: URI::Generic,
+      )
+    end
+
     PhotoUpload = Base::Struct.new(
-      chart_type: String,
-      difficulty: Integer,
-      title: String,
-      url: String,
+      info: Chart::InfoLite,
+      url: URI::Generic,
       location: String,
       time: Time,
     )
 
+    module Result
+      Progress = Base::Struct.new(
+        value: Integer,
+        max: Integer,
+      ) do
+        def to_s; "#{value}/#{max}"; end
+        alias to_i value
+        alias inspect to_s
+      end
+
+      TourMember = Base::Struct.new(
+        icon: URI::Generic,
+        grade: Integer,
+        level: Integer,
+      )
+
+      Judgment = Base::Struct.new(
+        just: Integer,
+        perfect: Integer,
+        great: Integer,
+        good: Integer,
+        miss: Integer,
+      )
+
+      Offset = Base::Struct.new(
+        early: Integer,
+        late: Integer,
+      )
+
+      ScoreLite = Base::Struct.new(
+        score: Float,
+        deluxe_score: Progress,
+        grade: Symbol,
+        flags: Generic[Array, Symbol],
+      )
+
+      Score = Base::Struct.new(
+        score: Float,
+        deluxe_score: Progress,
+        combo: Progress,
+        sync_score: Progress,
+        grade: Symbol,
+        flags: Generic[Array, Symbol],
+      )
+
+      ReferenceWebID = Base::Struct.new(
+        order: Integer,
+        time: Time,
+      ) do
+        def self.parse(s)
+          order, time = s.split(',').first(2).map(&:to_i)
+          new(order: order, time: Time.at(time))
+        end
+
+        def to_str
+          [order, time.to_i].join(',')
+        end
+        alias to_s to_str
+      end
+
+      Track = Base::Struct.new(
+        info: Chart::Info,
+        score: Either[Score, ScoreLite],
+        order: Integer,
+        time: Time,
+      )
+
+      TrackReference = Base::Struct.new(
+        track: Track,
+        ref_web_id: ReferenceWebID,
+      )
+
+      Data = Base::Struct.new(
+        track: Track,
+        breakdown: Generic[Hash, Symbol, Judgment],
+        timing: Offset,
+        members: Generic[Array, TourMember],
+      )
+    end
+
+    module Record
+      History = Base::Struct.new(
+        play_count: Integer,
+        last_played: Time,
+      )
+
+      Score = Base::Struct.new(
+        web_id: Chart::WebID,
+        score: Float,
+        deluxe_score: Result::Progress,
+        grade: Symbol,
+        deluxe_grade: Integer,
+        flags: Generic[Array, Symbol],
+      )
+
+      ChartRecord = Base::Struct.new(
+        info: Chart::Info,
+        record: Optional[Score],
+        history: Optional[History],
+      )
+
+      Data = Base::Struct.new(
+        info: Chart::Song,
+        charts: Generic[Hash, Symbol, ChartRecord],
+      )
+    end
+
     module FinaleArchive
       Decoration = Base::Struct.new(
-        icon: String,
-        player_frame: String,
-        nameplate: String,
+        icon: URI::Generic,
+        player_frame: URI::Generic,
+        nameplate: URI::Generic,
       )
       Currency = Base::Struct.new(
         amount: Integer, piece: Integer, parts: Integer,
