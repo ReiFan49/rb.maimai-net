@@ -252,6 +252,11 @@ module MaimaiNet
         last_played: Time,
       )
 
+      ScoreOnly = Base::Struct.new(
+        score: Float,
+        grade: Symbol,
+      )
+
       Score = Base::Struct.new(
         web_id: Chart::WebID,
         score: Float,
@@ -265,6 +270,21 @@ module MaimaiNet
         info: Chart::Info,
         record: Optional[Score],
         history: Optional[History],
+      )
+
+      InfoCategory = Base::Struct.new(
+        info: Chart::Info,
+        score: Optional[Result::ScoreLite],
+      )
+
+      InfoBest = Base::Struct.new(
+        info: Chart::Info,
+        play_count: Integer,
+      )
+
+      InfoRating = Base::Struct.new(
+        info: Chart::Info,
+        score: ScoreOnly,
       )
 
       Data = Base::Struct.new(
