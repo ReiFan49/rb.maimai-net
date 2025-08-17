@@ -10,7 +10,7 @@ module MaimaiNet
       )
         HelperBlock.send(:new, nil).instance_exec do
           header_block = elm.at_css('.playlog_top_container')
-          difficulty = Difficulty(Pathname(src(header_block.at_css('img.playlog_diff'))).sub_ext('').sub(/.+_/, '').basename)
+          difficulty = ::Kernel.Difficulty(::Kernel.Pathname(src(header_block.at_css('img.playlog_diff'))).sub_ext('').sub(/.+_/, '').basename)
 
           dx_container_classes = MaimaiNet::Difficulty::DELUXE.select do |k, v| v.positive? end
             .keys.map do |k| ".playlog_#{k}_container" end
@@ -29,14 +29,14 @@ module MaimaiNet
           song_jacket = src(result_block.at_css('img.music_img'))
           chart_type = nil
           result_block.at_css('img.playlog_music_kind_icon')&.tap do |elm|
-            chart_type = Pathname(src(elm))&.sub_ext('')&.sub(/.+_/, '')&.basename&.to_s
+            chart_type = ::Kernel.Pathname(src(elm))&.sub_ext('')&.sub(/.+_/, '')&.basename&.to_s
           end
 
           result_score = strip(result_block.at_css('.playlog_achievement_txt')).to_f
           result_deluxe_scores = scan_int(strip(result_block.at_css('.playlog_result_innerblock .playlog_score_block div:nth-of-type(1)')))
-          result_grade = Pathname(URI(src(result_block.at_css('.playlog_scorerank'))).path).sub_ext('')&.sub(/.+_/, '')&.basename&.to_s.to_sym
+          result_grade = ::Kernel.Pathname(::Kernel.URI(src(result_block.at_css('.playlog_scorerank'))).path).sub_ext('')&.sub(/.+_/, '')&.basename&.to_s.to_sym
           result_flags = result_block.css('.playlog_result_innerblock > img').map do |elm|
-            flag = Pathname(URI(src(elm)).path).sub_ext('')&.basename.to_s
+            flag = ::Kernel.Pathname(::Kernel.URI(src(elm)).path).sub_ext('')&.basename.to_s
             case flag
             when *MaimaiNet::AchievementFlag::RESULT.values; MaimaiNet::AchievementFlag.new(result_key: flag)
             when /_dummy$/; nil
