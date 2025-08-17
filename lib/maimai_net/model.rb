@@ -217,7 +217,7 @@ module MaimaiNet
       ) do
         def self.parse(s)
           order, time = s.split(',').first(2).map(&:to_i)
-          new(order: order, time: Time.at(time))
+          new(order: order, time: Time.at(time).localtime(32400).freeze)
         end
 
         def to_str
