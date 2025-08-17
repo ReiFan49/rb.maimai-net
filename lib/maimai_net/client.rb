@@ -150,6 +150,35 @@ module MaimaiNet
         )
       end
 
+      # access recent session gameplay info
+      # @return [Array<Model::Result::TrackReference>]
+      def recent_plays
+        send_request(
+          'get', '/maimai-mobile/record', nil,
+          response_page: Page::RecentTrack,
+        )
+      end
+
+      # access recent session gameplay info detail
+      # @return [Model::Result::Data]
+      def recent_play_info(ref)
+        id = case ref
+             when Model::Result::TrackReference
+               ref.ref_web_id.to_s
+             when Model::Result::ReferenceWebID
+               ref.to_s
+             when /^\d+,\d+$/
+               ref
+             else
+               fail TypeError, "expected a valid index ID format"
+             end
+
+        send_request(
+          'get', '/maimai-mobile/record/playlogDetail', {idx: id},
+          response_page: Page::TrackResult,
+        )
+      end
+
       # access finale archive page
       # @return [Model::FinaleArchive::Data] player's archived maimai finale statistics
       def finale_archive
