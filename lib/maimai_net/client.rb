@@ -170,12 +170,32 @@ module MaimaiNet
              when /^\d+,\d+$/
                ref
              else
-               fail TypeError, "expected a valid index ID format"
+               fail TypeError, 'expected a valid index ID format'
              end
 
         send_request(
           'get', '/maimai-mobile/record/playlogDetail', {idx: id},
           response_page: Page::TrackResult,
+        )
+      end
+
+      # access given set best score
+      # @return [Model::Record::Data]
+      def music_record_info(ref)
+        id = case ref
+             when Model::Chart::WebID::DUMMY, Model::Chart::WebID::DUMMY_ID
+               fail ArgumentError, 'unable to use dummy ID for lookup'
+             when Model::Chart::WebID
+               ref.to_s
+             when String
+               ref
+             else
+               fail TypeError, 'expected a valid index ID format'
+             end
+
+        send_request(
+          'get', '/maimai-mobile/record/musicDetail', {idx: id},
+          response_page: Page::ChartsetRecord,
         )
       end
 
