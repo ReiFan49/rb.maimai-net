@@ -310,6 +310,20 @@ module MaimaiNet
       end
     end
 
+    class RecentTrack < Base
+      helper_method :data do
+        track_blocks = @root.css('img.title ~ div')
+
+        track_blocks.map do |elm|
+          ref_web_id = Model::Result::ReferenceWebID.parse(elm.at_css('form input[type=hidden][name=idx]')['value'])
+          Model::Result::TrackReference.new(
+            track: TrackResultHelper.process(elm),
+            ref_web_id: ref_web_id,
+          )
+        end
+      end
+    end
+
     class FinaleArchive < Base
       STAT_KEYS = %i(
         count_clear

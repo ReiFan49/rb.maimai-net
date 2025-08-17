@@ -211,11 +211,31 @@ module MaimaiNet
         flags: Generic[Array, Symbol],
       )
 
+      ReferenceWebID = Base::Struct.new(
+        order: Integer,
+        time: Time,
+      ) do
+        def self.parse(s)
+          order, time = s.split(',').first(2).map(&:to_i)
+          new(order: order, time: Time.at(time))
+        end
+
+        def to_str
+          [order, time.to_i].join(',')
+        end
+        alias to_s to_str
+      end
+
       Track = Base::Struct.new(
         info: Chart::Info,
         score: Either[Score, ScoreLite],
         order: Integer,
         time: Time,
+      )
+
+      TrackReference = Base::Struct.new(
+        track: Track,
+        ref_web_id: ReferenceWebID,
       )
 
       Data = Base::Struct.new(
