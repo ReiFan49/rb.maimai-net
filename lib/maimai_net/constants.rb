@@ -18,7 +18,7 @@ module MaimaiNet
         end
       end
 
-      def define_new(extra_lookup_keys: [])
+      def define_new(key_enforce: nil, extra_lookup_keys: [])
         builder = []
         builder << <<~EOT
           @map  ||= {}
@@ -40,20 +40,29 @@ module MaimaiNet
 
         builder << "case key\n%s\nend" % [key_conditions.map do |k, v| "when #{k}\n  #{v}" end.join($/)]
 
-        builder << <<~'EOT'
-          key = key.upcase.to_sym if key.respond_to?(:to_sym)
-          fail TypeError, "expected Symbol, given %s" % [key.class] unless Symbol === key
-        EOT
+        if Symbol === key_enforce then
+          builder << <<~EOT
+            key = key.#{key_enforce}.to_sym if key.respond_to?(:to_sym)
+            fail TypeError, "expected Symbol, given %s" % [key.class] unless Symbol === key
+          EOT
+        else
+          builder << <<~'EOT'
+            fail TypeError, "expected Symbol, given %s" % [key.class] unless Symbol === key
+          EOT
+        end
 
         extra_lookup_builder = extra_lookup_keys.map do |k|
           "names << obj.#{k}"
         end
 
+        key_enforce_builder = ''
+        key_enforce_builder = "key = key.#{key_enforce}" if Symbol === key_enforce
+
         builder << <<~EOT
           if @keys.key?(key) then
             obj = @map[@keys[key]]
           else
-            key = key.upcase
+            #{key_enforce_builder}
             obj = super
             @map[obj.object_id] = obj
             names = [key]
@@ -142,7 +151,7 @@ module MaimaiNet
       alias to_sym key
 
       extend AutoConstant
-      define_new
+      define_new key_enforce: :upcase
       populate_entries :RECORD
     end
 
@@ -221,7 +230,7 @@ module MaimaiNet
       alias to_sym key
 
       extend AutoConstant
-      define_new extra_lookup_keys: %i(abbrev)
+      define_new key_enforce: :downcase, extra_lookup_keys: %i(abbrev)
       populate_entries :LIBRARY
     end
   end
