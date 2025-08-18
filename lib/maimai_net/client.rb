@@ -444,8 +444,97 @@ module MaimaiNet
       end
     end
 
+    module ConnectionSupportSongList
+      # access user's best scores of all music on given sorting mode
+      # @param options [Hash] query parameter
+      # @option genre     [Integer, Constants::Genre]
+      # @option character [Integer, Constants::NameGroup]
+      # @option level     [Integer, Constants::LevelGroup]
+      # @option version   [Integer, Symbol, Constants::GameVersion]
+      # @option diff      [Integer, Constants::Difficulty]
+      # @return [Hash{Symbol => Array<Model::Record::InfoRating>}]
+      def song_list(category, **options)
+        fail ArgumentError, "#{category} is not a valid key" unless /^[A-Z][a-z]+(?:[A-Z][a-z]+)*$/.match?(category)
+
+        options.transform_values! do |value|
+          case value
+          when MaimaiNet::Genre, MaimaiNet::NameGroup, MaimaiNet::LevelGroup, MaimaiNet::GameVersion, MaimaiNet::Difficulty
+            value.deluxe_web_id
+          else
+            value
+          end
+        end
+
+        send_request(
+          'get', "/maimai-mobile/record/music#{category}/search", options,
+          response_page: Page::MusicList,
+        )
+      end
+
+      def song_list_by_genre(genre:, diff:)
+        assert_parameter :diff,  diff,  0..4, 10
+        assert_parameter :genre, genre, 99, 101..106
+
+        song_list :Genre, genre: genre, diff: diff
+      end
+
+      def song_list_by_title(character:, diff:)
+        assert_parameter :diff,      diff,      0..4
+        assert_parameter :character, character, 0..15
+
+        song_list :Word, word: character, diff: diff
+      end
+
+      def song_list_by_level(level:)
+        assert_parameter :level, level, 1..6, 7..23
+
+        song_list :Level, level: level
+      end
+
+      def song_list_by_version(version:, diff:)
+        assert_parameter :diff,    diff,    0..4
+        assert_parameter :version, version, 0..23
+
+        song_list :Version, version: version, diff: diff
+      end
+
+      private
+      def assert_parameter(key, value, *constraints)
+        raw_value = value
+        case value
+        when MaimaiNet::Difficulty, MaimaiNet::Genre,
+          MaimaiNet::NameGroup, MaimaiNet::LevelGroup,
+          MaimaiNet::GameVersion
+          raw_value = value.deluxe_web_id
+        when Symbol
+          raw_value = case key
+                      when :diff;      MaimaiNet::Difficulty.new(value)
+                      when :genre;     MaimaiNet::Genre.new(value)
+                      when :character; MaimaiNet::NameGroup.new(value)
+                      when :level;     MaimaiNet::LevelGroup.new(value)
+                      when :version;   MaimaiNet::GameVersion.new(value)
+                      else fail TypeError, "given Symbol, expected key is compatible constant class"
+                      end
+          raw_value = raw_value.deluxe_web_id
+        end
+
+        fail Error::ClientError, "#{key} type assertion fails." unless constraints.any? do |constraint|
+          if constraint.respond_to?(:include?) then
+            constraint.include?(value)
+          else
+            constraint === value
+          end
+        end
+        nil
+      end
+    end
+
     class Base
       extend ConnectionProvider
+    end
+
+    class Connection
+      include ConnectionSupportSongList
     end
 
     class << Connection
@@ -532,7 +621,7 @@ module MaimaiNet
             end
           end
           @conn.builder.handlers.delete middleware
-          fail ClientError, 'cannot logout with redirection followup' if @conn.builder.handlers.include? middleware
+          fail Error::ClientError, "middleware #{middleware} is not removed yet from the stack" if @conn.builder.handlers.include? middleware
         end
 
         yield
