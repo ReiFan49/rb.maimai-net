@@ -421,7 +421,7 @@ module MaimaiNet
       # insert logging middleware into the connector, replaces if necessary
       # @return [void]
       def log!
-        replace_connector do
+        replace_connector do |builder|
           builder.response :logger, nil, headers: false, bodies: false, log_level: :info
         end
       end
