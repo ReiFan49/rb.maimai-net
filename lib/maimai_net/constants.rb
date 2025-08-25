@@ -11,7 +11,9 @@ module MaimaiNet
             .map(&:original_name)
             .sort.uniq
 
-          undef_method :clone, :dup
+          alias_method :clone, :itself
+          alias_method :dup,   :itself
+          undef_method :initialize_copy
 
           constants.map(&method(:const_get))
             .map(&:freeze)
