@@ -458,6 +458,20 @@ module MaimaiNet
       def song_list(category, **options)
         fail ArgumentError, "#{category} is not a valid key" unless /^[A-Z][a-z]+(?:[A-Z][a-z]+)*$/.match?(category)
 
+        converted_options = options.map do |key, value|
+          next [key, value] unless Symbol === value
+          raw_value = case key
+                      when :diff;      MaimaiNet::Difficulty.new(value)
+                      when :genre;     MaimaiNet::Genre.new(value)
+                      when :character; MaimaiNet::NameGroup.new(value)
+                      when :level;     MaimaiNet::LevelGroup.new(value)
+                      when :version;   MaimaiNet::GameVersion.new(value)
+                      end
+          [key, raw_value]
+        end.to_h
+
+        options.update(converted_options)
+
         options.transform_values! do |value|
           case value
           when MaimaiNet::Genre, MaimaiNet::NameGroup, MaimaiNet::LevelGroup, MaimaiNet::GameVersion, MaimaiNet::Difficulty
