@@ -445,6 +445,8 @@ module MaimaiNet
     end
 
     module ConnectionSupportSongList
+      using ObjectAsArray
+
       # access user's best scores of all music on given sorting mode
       # @param options [Hash] query parameter
       # @option genre     [Integer, Constants::Genre]
@@ -471,31 +473,39 @@ module MaimaiNet
         )
       end
 
-      def song_list_by_genre(genre:, diff:)
-        assert_parameter :diff,  diff,  0..4, 10
-        assert_parameter :genre, genre, 99, 101..106
+      def song_list_by_genre(genres:, diffs:)
+        genres.as_unique_array.product(diffs.as_unique_array).map do |genre, diff|
+          assert_parameter :diff,  diff,  0..4, 10
+          assert_parameter :genre, genre, 99, 101..106
 
-        song_list :Genre, genre: genre, diff: diff
+          song_list :Genre, genre: genre, diff: diff
+        end.inject({}, :update)
       end
 
-      def song_list_by_title(character:, diff:)
-        assert_parameter :diff,      diff,      0..4
-        assert_parameter :character, character, 0..15
+      def song_list_by_title(characters:, diffs:)
+        characters.as_unique_array.product(diffs.as_unique_array).map do |character, diff|
+          assert_parameter :diff,      diff,      0..4
+          assert_parameter :character, character, 0..15
 
-        song_list :Word, word: character, diff: diff
+          song_list :Word, word: character, diff: diff
+        end.inject({}, :update)
       end
 
-      def song_list_by_level(level:)
-        assert_parameter :level, level, 1..6, 7..23
+      def song_list_by_level(levels:)
+        levels.as_unique_array.map do |level|
+          assert_parameter :level, level, 1..6, 7..23
 
-        song_list :Level, level: level
+          song_list :Level, level: level
+        end
       end
 
-      def song_list_by_version(version:, diff:)
-        assert_parameter :diff,    diff,    0..4
-        assert_parameter :version, version, 0..23
+      def song_list_by_version(versions:, diffs:)
+        versions.as_unique_array.product(diffs.as_unique_array).map do |version, diff|
+          assert_parameter :diff,    diff,    0..4
+          assert_parameter :version, version, 0..23
 
-        song_list :Version, version: version, diff: diff
+          song_list :Version, version: version, diff: diff
+        end.inject({}, :update)
       end
 
       private
@@ -520,9 +530,9 @@ module MaimaiNet
 
         fail Error::ClientError, "#{key} type assertion fails." unless constraints.any? do |constraint|
           if constraint.respond_to?(:include?) then
-            constraint.include?(value)
+            constraint.include?(raw_value)
           else
-            constraint === value
+            constraint === raw_value
           end
         end
         nil
