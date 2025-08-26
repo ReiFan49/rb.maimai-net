@@ -49,12 +49,21 @@ module MaimaiNet
         key_conditions[Hash] = <<~EOS
           if !@map.empty? && key.size == 1 then
             dk, dv = key.first
-            key = @map.values.find do |obj| obj.public_send(dk) == dv end&.key or key if const_get(:VALID_ATTRIBUTES).include? dk.to_sym
+            key = [
+              @map.values.find do |obj|
+                val = obj.public_send(dk)
+                !val.nil? && val == dv
+              end&.key,
+              key,
+            ].compact.each.next if const_get(:VALID_ATTRIBUTES).include? dk.to_sym
           end
         EOS
 
         key_conditions[Integer] = <<-EOS if const_get(:VALID_ATTRIBUTES).include?(:id)
-          key = @map.values.find do |obj| obj.id == key end&.key or key
+          key = [
+            @map.values.find do |obj| obj.id == key end&.key,
+            key,
+          ].compact.each.next
         EOS
 
         builder << "case key\n%s\nend" % [key_conditions.map do |k, v| "when #{k}\n  #{v}" end.join($/)]
