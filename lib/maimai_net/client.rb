@@ -543,7 +543,9 @@ module MaimaiNet
         end
 
         fail Error::ClientError, "#{key} type assertion fails." unless constraints.any? do |constraint|
-          if constraint.respond_to?(:include?) then
+          if Class === constraint && !constraint.singleton_class? && constraint < MaimaiNet::Constant then
+            constraint.deluxe_web_id?(raw_value)
+          elsif constraint.respond_to?(:include?) then
             constraint.include?(raw_value)
           else
             constraint === raw_value
