@@ -1,15 +1,22 @@
 module MaimaiNet
   module Constants
+    Constant = Module.new.freeze
+
     module AutoConstant
       def self.extend_object(cls)
         super
         return unless Module === cls
 
+        stack = caller_locations(0).find do |s| s.label == 'extend' end
+
         cls.class_exec do
-          const_set :VALID_ATTRIBUTES, instance_methods(false)
+          include Constant
+
+          attrs = instance_methods(false)
             .map(&method(:instance_method))
             .map(&:original_name)
             .sort.uniq
+          const_set :VALID_ATTRIBUTES, attrs
 
           alias_method :clone, :itself
           alias_method :dup,   :itself
@@ -17,6 +24,16 @@ module MaimaiNet
 
           constants.map(&method(:const_get))
             .map(&:freeze)
+
+          attrs.each do |attr|
+            instance_eval <<~EOT, stack.path, stack.lineno
+              def #{attr}?(value)
+                new(#{attr}: value)
+              rescue TypeError
+                nil
+              end
+            EOT
+          end
         end
       end
 
