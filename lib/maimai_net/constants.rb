@@ -1,5 +1,143 @@
 module MaimaiNet
   module Constants
+    Constant = Module.new.freeze
+
+    module AutoConstant
+      def self.extend_object(cls)
+        super
+        return unless Module === cls
+
+        stack = caller_locations(0).find do |s| s.label == 'extend' end
+
+        cls.class_exec do
+          include Constant
+
+          attrs = instance_methods(false)
+            .map(&method(:instance_method))
+            .map(&:original_name)
+            .sort.uniq
+          const_set :VALID_ATTRIBUTES, attrs
+
+          alias_method :clone, :itself
+          alias_method :dup,   :itself
+          undef_method :initialize_copy
+
+          constants.map(&method(:const_get))
+            .map(&:freeze)
+
+          attrs.each do |attr|
+            instance_eval <<~EOT, stack.path, stack.lineno
+              def #{attr}?(value)
+                new(#{attr}: value)
+              rescue TypeError
+                nil
+              end
+            EOT
+          end
+        end
+      end
+
+      def define_new(key_enforce: nil, extra_lookup_keys: [])
+        builder = []
+        builder << <<~EOT
+          @map  ||= {}
+          @keys ||= {}
+        EOT
+
+        key_conditions = {}
+        key_conditions[Pathname] = 'key = key.to_s'
+        key_conditions[Hash] = <<~EOS
+          if !@map.empty? && key.size == 1 then
+            dk, dv = key.first
+            key = [
+              @map.values.find do |obj|
+                val = obj.public_send(dk)
+                !val.nil? && val == dv
+              end&.key,
+              key,
+            ].compact.each.next if const_get(:VALID_ATTRIBUTES).include? dk.to_sym
+          end
+        EOS
+
+        key_conditions[Integer] = <<-EOS if const_get(:VALID_ATTRIBUTES).include?(:id)
+          key = [
+            @map.values.find do |obj| obj.id == key end&.key,
+            key,
+          ].compact.each.next
+        EOS
+
+        builder << "case key\n%s\nend" % [key_conditions.map do |k, v| "when #{k}\n  #{v}" end.join($/)]
+
+        if Symbol === key_enforce then
+          builder << <<~EOT
+            key = key.#{key_enforce}.to_sym if key.respond_to?(:to_sym)
+            fail TypeError, "expected Symbol, given %s" % [key.class] unless Symbol === key
+          EOT
+        else
+          builder << <<~'EOT'
+            fail TypeError, "expected Symbol, given %s" % [key.class] unless Symbol === key
+          EOT
+        end
+
+        extra_lookup_builder = extra_lookup_keys.map do |k|
+          "names << obj.#{k}"
+        end
+
+        key_enforce_builder = ''
+        key_enforce_builder = "key = key.#{key_enforce}" if Symbol === key_enforce
+
+        builder << <<~EOT
+          if @keys.key?(key) then
+            obj = @map[@keys[key]]
+          else
+            #{key_enforce_builder}
+            obj = super
+            @map[obj.object_id] = obj
+            names = [key]
+            #{extra_lookup_builder * $/}
+            names.each do |k|
+              @keys.store k, obj.object_id
+            end
+          end
+        EOT
+
+        builder << 'obj'
+
+        stack = caller_locations(1).first
+        instance_eval "def new(key)\n%s\nend" % [builder.join($/)],
+          stack.path, stack.lineno
+      end
+
+      def populate_entries(constant_or_list)
+        list = nil
+
+        case constant_or_list
+        when Symbol
+          list = const_get(constant_or_list)
+        else
+          list = constant_or_list
+        end
+
+        case list
+        when Hash
+          list = list.keys
+        when Enumerable
+          list = list.to_a
+        else
+          if Symbol === constant_or_list then
+            fail ArgumentError, "expected constant #{constant_or_list} is an enumerable, given #{list.class}"
+          else
+            fail TypeError, "expected a constant name or an enumerable, given #{constant_or_list.class}"
+          end
+        end
+
+        singleton_class.undef_method __method__ rescue 0
+        list.each &method(:new)
+      end
+    end
+
+    private_constant :AutoConstant
+
     class AchievementFlag
       COMBO = %i(fc ap)
       SYNC  = %i(sync fs fsd)
@@ -40,57 +178,9 @@ module MaimaiNet
       alias id key
       alias to_sym key
 
-      VALID_ATTRIBUTES = instance_methods(false)
-        .map(&method(:instance_method))
-        .map(&:original_name)
-        .sort.uniq
-
-      undef_method :clone, :dup
-
-      constants.map(&method(:const_get))
-        .map(&:freeze)
-
-      class << self
-        def new(key)
-          @map  ||= {}
-          @keys ||= {}
-
-          case key
-          when Pathname; key = key.to_s
-          when Integer
-            key = @map.values.find do |obj| obj.id == key end&.key or key if VALID_ATTRIBUTES.include?(:id)
-          when Hash
-            if !@map.empty? && key.size == 1 then
-              data_key, data_value = key.first
-              if VALID_ATTRIBUTES.include? data_key.to_sym then
-                key = @map.values.find do |obj| obj.public_send(data_key) == data_value end&.key or key
-              end
-            end
-          end
-
-          if key.respond_to?(:to_sym) then
-            key = key.upcase.to_sym
-          end
-          fail TypeError, "expected Symbol, given #{key.class}" unless Symbol === key
-
-          if @keys.key?(key) then
-            obj = @map[@keys[key]]
-          else
-            key = key.upcase
-            obj = super
-            @map[obj.object_id] = obj
-            names = [key]
-            names << obj.abbrev if instance_methods.include?(:abbrev)
-            [key].each do |k|
-              @keys.store k, obj.object_id
-            end
-          end
-
-          obj
-        end
-      end
-
-      RECORD.keys.each &method(:new)
+      extend AutoConstant
+      define_new key_enforce: :upcase
+      populate_entries :RECORD
     end
 
     class Difficulty
@@ -167,55 +257,9 @@ module MaimaiNet
       alias to_i   id
       alias to_sym key
 
-      VALID_ATTRIBUTES = instance_methods(false)
-        .map(&method(:instance_method))
-        .map(&:original_name)
-        .sort.uniq
-
-      undef_method :clone, :dup
-
-      constants.map(&method(:const_get))
-        .map(&:freeze)
-
-      class << self
-        def new(key)
-          @map  ||= {}
-          @keys ||= {}
-
-          case key
-          when Pathname; key = key.to_s
-          when Integer
-            key = @map.values.find do |obj| obj.id == key end&.key or key
-          when Hash
-            if !@map.empty? && key.size == 1 then
-              data_key, data_value = key.first
-              if VALID_ATTRIBUTES.include? data_key.to_sym then
-                key = @map.values.find do |obj| obj.public_send(data_key) == data_value end&.key or key
-              end
-            end
-          end
-
-          if key.respond_to?(:to_sym) then
-            key = key.to_sym
-          end
-          fail TypeError, "expected Symbol, given #{key.class}" unless Symbol === key
-
-          if @keys.key?(key) then
-            obj = @map[@keys[key]]
-          else
-            key = key.downcase
-            obj = super
-            @map[obj.object_id] = obj
-            [key, obj.abbrev].each do |k|
-              @keys.store k, obj.object_id
-            end
-          end
-
-          obj
-        end
-      end
-
-      LIBRARY.keys.each &method(:new)
+      extend AutoConstant
+      define_new key_enforce: :downcase, extra_lookup_keys: %i(abbrev)
+      populate_entries :LIBRARY
     end
   end
 
