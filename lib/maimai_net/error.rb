@@ -38,7 +38,7 @@ module MaimaiNet
     class RoutineMaintenance < ClientError
       include Maintenance
       def initialize(time_range)
-        start_time, end_time = time_range.start, time_range.end
+        start_time, end_time = time_range.begin, time_range.end
         super("Maintenance from %s to %s." % [
           start_time.strftime('%H:%M'),
           end_time.strftime('%H:%M'),
