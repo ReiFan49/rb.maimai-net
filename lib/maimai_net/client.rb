@@ -179,6 +179,23 @@ module MaimaiNet
         )
       end
 
+      # access recent session gameplay detailed info
+      # @param [Integer, nil] amount of tracks to fetch
+      # @return [Array<Model::Result::Data>]
+      def recent_play_details(limit = nil)
+        commands = []
+        if Integer === limit then
+          if limit.positive? then
+            commands << ->(plays){plays.last(limit)}
+          else
+            fail ArgumentError, "expected positive size limit, given #{limit}"
+          end
+        end
+        plays = recent_plays.map(&:ref_web_id)
+        commands.each do |cmd| plays.replace cmd[plays] end
+        plays.map(&method(:recent_play_info))
+      end
+
       # access given set best score
       # @return [Model::Record::Data]
       def music_record_info(ref)
