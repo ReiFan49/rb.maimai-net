@@ -264,8 +264,9 @@ module MaimaiNet
         super
 
         start_anchor = @root.at_css('img.title')
-        @score_block = start_anchor.at_css('~ div:nth-of-type(1)')
-        @breakdown_block = start_anchor.at_css('~ div:nth-of-type(2)')
+        @otomodachi_block = start_anchor.at_css('~ div#vsUser > :first-child')
+        @score_block = start_anchor.at_css('~ div:not(#vsUser):nth-of-type(1)')
+        @breakdown_block = start_anchor.at_css('~ div:not(#vsUser):nth-of-type(2)')
       end
 
       helper_method :data do
@@ -294,6 +295,21 @@ module MaimaiNet
           )
         end
 
+        result_otomodachi_rival = nil
+        unless @otomodachi_block.nil? then
+          rival_name   = strip(@otomodachi_block.at_css('> span > div').children[0])
+          rival_score  = strip(@otomodachi_block.at_css('> span > div > span')).to_f
+          rival_rating = int(strip(@otomodachi_block.at_css('> div .rating_block')))
+
+          result_otomodachi_rival = Model::Result::RivalInfo.new(
+            player: Model::PlayerData::Lite.new(
+              name: rival_name,
+              rating: rival_rating,
+            ),
+            score: rival_score,
+          )
+        end
+
         chart_web_id = Model::Chart::WebID.parse(@root.at_css('form[action$="/record/musicDetail/"] input[name=idx]')['value'])
 
         Model::Result::Data.new(
@@ -306,6 +322,7 @@ module MaimaiNet
           breakdown: result_breakdown,
           timing: Model::Result::Offset.new(**Model::Result::Offset.members.zip(result_offset_breakdown).to_h),
           members: result_tour_members,
+          rival: result_otomodachi_rival,
         )
       end
     end

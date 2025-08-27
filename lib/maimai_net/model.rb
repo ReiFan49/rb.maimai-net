@@ -90,6 +90,10 @@ module MaimaiNet
         decoration: Decoration,
         extended: ExtendedInfo,
       )
+      Lite = Base::Struct.new(
+        name: String,
+        rating: Integer,
+      )
       Data = Base::Struct.new(
         plate: InfoPlate,
         statistics: Generic[Hash, Symbol, DifficultyStatistic],
@@ -176,6 +180,11 @@ module MaimaiNet
         alias inspect to_s
       end
 
+      RivalInfo = Base::Struct.new(
+        player: PlayerData::Lite,
+        score:  Float,
+      )
+
       TourMember = Base::Struct.new(
         icon: URI::Generic,
         grade: Integer,
@@ -243,6 +252,7 @@ module MaimaiNet
         breakdown: Generic[Hash, Symbol, Judgment],
         timing: Offset,
         members: Generic[Array, TourMember],
+        rival: Optional[RivalInfo],
       )
     end
 
