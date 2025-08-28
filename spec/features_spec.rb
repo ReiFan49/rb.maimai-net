@@ -33,8 +33,8 @@ RSpec.describe MaimaiNet do
     describe 'extended gameplay result' do
       subject do MaimaiNet::Model::Result::Data.members end
 
-      it 'has challenge support', :planned do
-        is_expected.to include(:challenge)
+      it 'has challenge support' do
+        expect(MaimaiNet::Model::Result::Track.members).to include(:challenge)
       end
 
       it 'has tour member list support' do

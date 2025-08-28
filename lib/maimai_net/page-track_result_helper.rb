@@ -43,6 +43,17 @@ module MaimaiNet
             end
           end.compact
 
+          challenge_info = nil
+          result_block.at_css('div:has(> .playlog_life_block)')&.tap do |elm|
+            challenge_type = ::Kernel.Pathname(::Kernel.URI(src(elm.at_css('img:nth-of-type(1)'))).path).basename.sub_ext('').sub(/.+_/, '').to_s.to_sym
+            challenge_lives = scan_int(strip(elm.at_css('.playlog_life_block')))
+
+            challenge_info = Model::Result::Challenge.new(
+              type: challenge_type,
+              lives: Model::Result::Progress.new(**%i(value max).zip(challenge_lives).to_h),
+            )
+          end
+
           score_data = {
             score: result_score,
             **%i(deluxe_score combo sync_score).zip([
@@ -70,6 +81,7 @@ module MaimaiNet
             score: score_info,
             order: track_order,
             time: play_time,
+            challenge: challenge_info,
           )
         end
       end

@@ -204,6 +204,11 @@ module MaimaiNet
         late: Integer,
       )
 
+      Challenge = Base::Struct.new(
+        type: Symbol,
+        lives: Progress,
+      )
+
       ScoreLite = Base::Struct.new(
         score: Float,
         deluxe_score: Progress,
@@ -240,6 +245,7 @@ module MaimaiNet
         score: Either[Score, ScoreLite],
         order: Integer,
         time: Time,
+        challenge: Optional[Challenge],
       )
 
       TrackReference = Base::Struct.new(
