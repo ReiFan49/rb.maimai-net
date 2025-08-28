@@ -505,21 +505,21 @@ module MaimaiNet
       end
 
       def song_list_by_genre(genres:, diffs:)
-        genres.as_unique_array.product(diffs.as_unique_array).map do |genre, diff|
+        map_product_combine_result(genres, diffs) do |genre, diff|
           assert_parameter :diff,  diff,  0..4, 10
           assert_parameter :genre, genre, 99, 101..106
 
           song_list :Genre, genre: genre, diff: diff
-        end.inject({}, :update)
+        end
       end
 
       def song_list_by_title(characters:, diffs:)
-        characters.as_unique_array.product(diffs.as_unique_array).map do |character, diff|
+        map_product_combine_result(characters, diffs) do |character, diff|
           assert_parameter :diff,      diff,      0..4
           assert_parameter :character, character, 0..15
 
           song_list :Word, word: character, diff: diff
-        end.inject({}, :update)
+        end
       end
 
       def song_list_by_level(levels:)
@@ -531,12 +531,12 @@ module MaimaiNet
       end
 
       def song_list_by_version(versions:, diffs:)
-        versions.as_unique_array.product(diffs.as_unique_array).map do |version, diff|
+        map_product_combine_result(versions, diffs) do |version, diff|
           assert_parameter :diff,    diff,    0..4
           assert_parameter :version, version, 0..23
 
           song_list :Version, version: version, diff: diff
-        end.inject({}, :update)
+        end
       end
 
       private
@@ -573,6 +573,19 @@ module MaimaiNet
           end
         end
         nil
+      end
+
+      def map_product_combine_result(*lists, &block)
+        fail ArgumentError, 'no lists given' if lists.empty?
+        head = lists.shift.as_unique_array
+        return head if lists.empty?
+
+        lists.map! &:as_unique_array
+        head.product(*lists).map(&block).inject({}) do |h, data|
+          h.update(data) do |k, v1, v2|
+            v1.concat(v2)
+          end
+        end
       end
     end
 
