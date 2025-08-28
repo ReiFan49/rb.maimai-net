@@ -559,7 +559,11 @@ module MaimaiNet
           raw_value = raw_value.deluxe_web_id
         end
 
-        fail Error::ClientError, "#{key} type assertion fails." unless constraints.any? do |constraint|
+        fail Error::ClientError, sprintf(
+          '%s type assertion fails, given %p (%p), expected %s',
+          key, value, raw_value,
+          constraints.join(', '),
+        ) unless constraints.any? do |constraint|
           if Class === constraint && !constraint.singleton_class? && constraint < MaimaiNet::Constant then
             constraint.deluxe_web_id?(raw_value)
           elsif constraint.respond_to?(:include?) then
