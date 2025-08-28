@@ -478,16 +478,24 @@ module MaimaiNet
         converted_options = options.map do |key, value|
           next [key, value] unless Symbol === value
           raw_value = case key
-                      when :diff;      MaimaiNet::Difficulty.new(value)
-                      when :genre;     MaimaiNet::Genre.new(value)
-                      when :character; MaimaiNet::NameGroup.new(value)
-                      when :level;     MaimaiNet::LevelGroup.new(value)
-                      when :version;   MaimaiNet::GameVersion.new(value)
+                      when :diff;             MaimaiNet::Difficulty.new(value)
+                      when :genre;            MaimaiNet::Genre.new(value)
+                      when :character, :word; MaimaiNet::NameGroup.new(value)
+                      when :level;            MaimaiNet::LevelGroup.new(value)
+                      when :version;          MaimaiNet::GameVersion.new(value)
                       end
           [key, raw_value]
         end.to_h
 
         options.update(converted_options)
+
+        options.transform_keys! do |key|
+          if key == :character then
+            :word
+          else
+            key
+          end
+        end
 
         options.transform_values! do |value|
           case value
@@ -518,7 +526,7 @@ module MaimaiNet
           assert_parameter :diff,      diff,      0..4
           assert_parameter :character, character, 0..15
 
-          song_list :Word, word: character, diff: diff
+          song_list :Word, character: character, diff: diff
         end
       end
 
