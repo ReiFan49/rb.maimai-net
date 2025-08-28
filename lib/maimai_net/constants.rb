@@ -37,7 +37,12 @@ module MaimaiNet
         end
       end
 
-      def define_new(key_enforce: nil, extra_lookup_keys: [])
+      def define_new(
+        key_enforce: nil,
+        key_lookup_enforce: nil,
+        key_assign_enforce: nil,
+        extra_lookup_keys: []
+      )
         builder = []
         builder << <<~EOT
           @map  ||= {}
@@ -68,29 +73,33 @@ module MaimaiNet
 
         builder << "case key\n%s\nend" % [key_conditions.map do |k, v| "when #{k}\n  #{v}" end.join($/)]
 
-        if Symbol === key_enforce then
-          builder << <<~EOT
-            key = key.#{key_enforce}.to_sym if key.respond_to?(:to_sym)
-            fail TypeError, "expected Symbol, given %s" % [key.class] unless Symbol === key
-          EOT
-        else
-          builder << <<~'EOT'
-            fail TypeError, "expected Symbol, given %s" % [key.class] unless Symbol === key
-          EOT
-        end
+        key_lookup_enforce = key_enforce if key_lookup_enforce.nil?
+        key_assign_enforce = key_enforce if key_assign_enforce.nil?
+
+        builder << <<~'EOT'
+          key = key.to_sym if key.respond_to?(:to_sym)
+          fail TypeError, "expected Symbol, given %s" % [key.class] unless Symbol === key
+        EOT
 
         extra_lookup_builder = extra_lookup_keys.map do |k|
           "names << obj.#{k}"
         end
 
-        key_enforce_builder = ''
-        key_enforce_builder = "key = key.#{key_enforce}" if Symbol === key_enforce
+        key_lookup_enforce_builder = ''
+        key_lookup_enforce_builder = <<~EOT if Symbol === key_lookup_enforce
+          elsif @keys.key?(key.#{key_lookup_enforce}) then
+            obj = @map[@keys[key.#{key_lookup_enforce}]]
+        EOT
+
+        key_assign_enforce_builder = ''
+        key_assign_enforce_builder = "key = key.#{key_assign_enforce}" if Symbol === key_assign_enforce
 
         builder << <<~EOT
           if @keys.key?(key) then
             obj = @map[@keys[key]]
+          #{key_lookup_enforce_builder}
           else
-            #{key_enforce_builder}
+            #{key_assign_enforce_builder}
             obj = super
             @map[obj.object_id] = obj
             names = [key]
