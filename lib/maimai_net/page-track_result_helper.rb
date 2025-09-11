@@ -1,7 +1,7 @@
 module MaimaiNet
   module Page
     module TrackResultHelper
-      using IncludeDifficulty
+      using IncludeAutoConstant
       def self.process(
         elm,
         web_id: MaimaiNet::Model::Chart::WebID::DUMMY,

@@ -1,8 +1,13 @@
 module MaimaiNet
-  # includes Difficulty into invokable class
-  module IncludeDifficulty
+  # includes AutoConstants into invokable class
+  module IncludeAutoConstant
     refine Kernel do
-      def Difficulty(key); MaimaiNet::Difficulty.new(key) end
+      MaimaiNet.constants.each do |k|
+        cls = MaimaiNet.const_get(k)
+        next unless Class === cls && cls < MaimaiNet::Constant
+
+        define_method k do |key| cls.new(k) end
+      end
     end
   end
 

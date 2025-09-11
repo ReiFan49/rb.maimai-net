@@ -7,7 +7,7 @@ require 'maimai_net/faraday_ext/cookie_jar'
 
 module MaimaiNet
   module Client
-    using IncludeDifficulty
+    using IncludeAutoConstant
 
     class Base
       include CoreExt
