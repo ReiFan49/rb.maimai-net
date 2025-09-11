@@ -108,16 +108,6 @@ RSpec.describe MaimaiNet do
     it 'can update configuration'
   end
 
-  describe 'ranking list', priority: :low do
-    it 'show chart ranking'
-    it "show dan'i nintei ranking"
-    it 'show deluxe rating ranking'
-    it 'show total completion ranking'
-    it 'show partner ranking'
-    it 'show otomodachi ranking'
-    it 'show kaleidoscope ranking'
-  end
-
   it 'achievement rate chart list', priority: :low
 
   it 'knows maintenance time' do
