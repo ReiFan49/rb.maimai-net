@@ -387,7 +387,7 @@ module MaimaiNet
 
     class GameVersion
       ORIGINAL_VERSIONS = %w(maimai GReeN ORANGE PiNK MURASAKi MiLK FiNALE)
-      DELUXE_VERSIONS = %w(Deluxe Splash UNiVERSE FESTiVAL BUDDiES PRiSM)
+      DELUXE_VERSIONS = %w(Deluxe Splash UNiVERSE FESTiVAL BUDDiES PRiSM CiRCLE)
 
       VERSIONS       = {}.tap do |ver|
         ORIGINAL_VERSIONS.slice(0...-1).flat_map do |k|
