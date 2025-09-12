@@ -443,6 +443,37 @@ module MaimaiNet
       define_new key_enforce: :upcase
       populate_entries :LIBRARY
     end
+
+    class BestScoreSortType
+      LIBRARY = %i(
+        achievement_high
+        achievement_low
+        deluxe_high
+        deluxe_low
+        all_perfect_achieved
+        all_perfect_not_yet
+      ).each_with_index.to_h
+        .transform_values(&:succ)
+
+      def initialize(key)
+        @key = key
+
+        @id            = LIBRARY[key]
+        @deluxe_web_id = LIBRARY[key]
+
+        freeze
+      end
+
+      attr_reader :key
+      attr_reader :id, :deluxe_web_id
+
+      alias to_i   id
+      alias to_sym key
+
+      extend AutoConstant
+      define_new key_enforce: :downcase
+      populate_entries :LIBRARY
+    end
   end
 
   include Constants

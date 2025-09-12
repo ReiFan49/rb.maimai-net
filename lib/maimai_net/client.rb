@@ -558,7 +558,7 @@ module MaimaiNet
       end
 
       # retrieves player's best score of given difficulty based on given filtering
-      # @param sort    [Integer] preferred sorting
+      # @param sort    [Integer, Symbol, Constants::BestScoreSortType] preferred sorting
       # @param diffs   [Integer, Symbol, Constants::Difficulty, Array<Integer, Symbol, Constants::Difficulty] difficulties of preferred filter to fetch from
       # @param played_only [Boolean] include difficulties without any score registered
       # @param filters [Hash{Symbol => Object}] set of filters to apply for
@@ -570,6 +570,28 @@ module MaimaiNet
       # @return [Array<MaimaiNet::Model::Record::InfoCategory>] list of best score of each songs on given difficulties without any category grouping applied (through all: true as first)
       # @return [Hash{Symbol => Array<MaimaiNet::Model::Record::InfoCategory>}] list of best score of each songs on given difficulties grouped based on first category set
       def song_list_by_custom(sort:, diffs:, played_only: true, **filters)
+        normalize_isc = ->(type, value) {
+          raw_value = value
+
+          case value
+          when Integer
+            return value
+          when Symbol
+            base_class = case type
+                         when :sort; MaimaiNet::BestScoreSortType
+                         when :diff; MaimaiNet::Difficulty
+                         when *KEY_MAP_CONSTANT.keys;
+                           KEY_MAP_CONSTANT[type]
+                         end
+            fail ArgumentError, "expected key (#{type}) is compatible constant class" if base_class.nil?
+
+            raw_value = base_class.new(value)
+          end
+
+          return raw_value.deluxe_web_id if MaimaiNet::Constant === raw_value
+          fail ArgumentError, "expected Integer, Symbol or MaimaiNet::Constant classes. given #{raw_value.class}"
+        }
+
         convert_values = ->(type, base_value) {
           case type
           when :all
@@ -625,6 +647,11 @@ module MaimaiNet
           head_values = convert_values.call(head_type, head_value)
         else
           head_values = convert_values.call(head_type, head_value)
+        end
+
+        sort  = normalize_isc.call(:sort, sort)
+        diffs = diffs.as_unique_array.map do |diff|
+          normalize_isc.call(:diff, diff)
         end
 
         filters.reject! do |key, value| (key == :all && value) || value == :all end
