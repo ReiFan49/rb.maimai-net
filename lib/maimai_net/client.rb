@@ -677,8 +677,9 @@ module MaimaiNet
         }
 
         head_values.as_unique_array.inject({}) do |result, search_value|
-          diffs.as_unique_array.inject({}) do |diff_result, diff_value|
+          diffs.inject({}) do |diff_result, diff_value|
             response = send.call(search_value, diff_value)
+            response = {} if response.empty?
 
             diff_result.update(response, &quick_concat)
           end.yield_self do |diff_result|
@@ -692,11 +693,16 @@ module MaimaiNet
             break filter_result if filter_result.empty?
 
             search_values.inject([]) do |search_result, search_value|
-              diffs.as_unique_array.min.yield_self do |diff_value|
-                send.call(search_value, diff_value)
+              nil.yield_self do
+                search_value.start_with?('L') ?
+                  diffs :
+                  diffs.min
+              end.as_unique_array.inject([]) do |diff_result, diff_value|
+                response = send.call(search_value, diff_value)
+                response = response.values.inject([], :concat) if Hash === response
+                diff_result.concat response
               end.yield_self do |diff_result|
-                diff_result.values.inject([], :concat)
-                  .map(&get_id)
+                diff_result.map(&get_id)
               end.yield_self &search_result.method(:union)
             end.yield_self &filter_result.method(:intersection)
           end.yield_self do |filtered_ids|
