@@ -638,8 +638,8 @@ module MaimaiNet
               search:    search,
               sort:      sort,
               diff:      diff,
-              playCheck: played_only,
-            },
+              playCheck: played_only ? 'on' : nil,
+            }.compact,
             response_page: Page::MusicList,
           )
         }
