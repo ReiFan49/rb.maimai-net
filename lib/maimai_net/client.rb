@@ -676,6 +676,41 @@ module MaimaiNet
           [chart_info.info.type, chart_info.info.title].join(':')
         }
 
+        # this is potentially adding unnecessary overhead for sorting everything first
+        create_sort_indices = ->(ary) {
+          # index 0 is always unique
+          # index 1 or higher is based on sort rank, nullity gives lowest value automatically
+          indices = Array.new(1 + MaimaiNet::BestScoreSortType::LIBRARY.size) do |j|
+            ary.map.each_with_index do |best_info, i| [best_info.object_id, j.positive? ? ary.size : i] end.to_h
+          end
+
+          assign_ranks = ->(high_index:, low_index:) {
+            ->(sorted) {
+              sorted.each_with_index do |best_info, rank|
+                high_rank = sorted.size - (rank + 1)
+                low_rank  = rank
+
+                indices[high_index][best_info.object_id] = high_rank
+                indices[low_index][best_info.object_id]  = low_rank
+              end
+            }
+          }
+
+          ary.reject do |best_info| best_info.score.nil? end
+            .tap do |played_ary|
+              played_ary.sort_by do |best_info|
+                best_info.score.score
+              end.tap &assign_ranks.call(high_index: 1, low_index: 2)
+
+              played_ary.sort_by do |best_info|
+                dx = best_info.score.deluxe_score
+                dx.max.positive? ? Rational(dx.value, dx.max) : 0
+              end.tap &assign_ranks.call(high_index: 3, low_index: 4)
+            end
+
+          indices
+        }
+
         head_values.as_unique_array.inject({}) do |result, search_value|
           diffs.inject({}) do |diff_result, diff_value|
             response = send.call(search_value, diff_value)
@@ -706,9 +741,21 @@ module MaimaiNet
               end.yield_self &search_result.method(:union)
             end.yield_self &filter_result.method(:intersection)
           end.yield_self do |filtered_ids|
-            result.transform_values do |category_info_list|
+            result.transform_values! do |category_info_list|
               category_info_list.select do |category_info|
                 filtered_ids.include?(get_id.call(category_info))
+              end
+            end.transform_values! do |category_info_list|
+              flat_indices = create_sort_indices.call(category_info_list)
+                .values_at(sort, 0).yield_self do |sort_indices|
+                  head_indices = sort_indices.first.keys
+                  head_indices.map do |k|
+                    [k, sort_indices.map do |h| h[k] end]
+                  end.to_h
+                end
+
+              category_info_list.sort_by do |category_info|
+                flat_indices[category_info.object_id]
               end
             end
           end
