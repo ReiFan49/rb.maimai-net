@@ -9,6 +9,14 @@ module MaimaiNet
   module Client
     using IncludeDifficulty
 
+    KEY_MAP_CONSTANT = {
+      genre:     MaimaiNet::Genre,
+      character: MaimaiNet::NameGroup,
+      word:      MaimaiNet::NameGroup,
+      level:     MaimaiNet::LevelGroup,
+      version:   MaimaiNet::GameVersion,
+    }.freeze
+
     class Base
       include CoreExt
 
@@ -477,13 +485,7 @@ module MaimaiNet
 
         converted_options = options.map do |key, value|
           next [key, value] unless Symbol === value
-          raw_value = case key
-                      when :diff;             MaimaiNet::Difficulty.new(value)
-                      when :genre;            MaimaiNet::Genre.new(value)
-                      when :character, :word; MaimaiNet::NameGroup.new(value)
-                      when :level;            MaimaiNet::LevelGroup.new(value)
-                      when :version;          MaimaiNet::GameVersion.new(value)
-                      end
+          raw_value = KEY_MAP_CONSTANT[key].new(value)
           [key, raw_value]
         end.to_h
 
@@ -556,15 +558,10 @@ module MaimaiNet
           MaimaiNet::GameVersion
           raw_value = value.deluxe_web_id
         when Symbol
-          raw_value = case key
-                      when :diff;      MaimaiNet::Difficulty.new(value)
-                      when :genre;     MaimaiNet::Genre.new(value)
-                      when :character; MaimaiNet::NameGroup.new(value)
-                      when :level;     MaimaiNet::LevelGroup.new(value)
-                      when :version;   MaimaiNet::GameVersion.new(value)
-                      else fail TypeError, "given Symbol, expected key is compatible constant class"
-                      end
-          raw_value = raw_value.deluxe_web_id
+          raw_value = KEY_MAP_CONSTANT[key].yield_self do |cls|
+            fail TypeError, "given Symbol, expected key (#{key}) is compatible constant class" if cls.nil?
+            cls.new(value).deluxe_web_id
+          end
         end
 
         fail Error::ClientError, sprintf(
