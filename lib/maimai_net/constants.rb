@@ -454,8 +454,8 @@ module MaimaiNet
         achievement_low
         deluxe_high
         deluxe_low
-        all_perfect_achieved
-        all_perfect_not_yet
+        combo_rank_high
+        combo_rank_low
       ).each_with_index.to_h
         .transform_values(&:succ)
 
