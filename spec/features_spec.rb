@@ -88,9 +88,9 @@ RSpec.describe MaimaiNet do
       is_expected.to_not respond_to(:song_list_by_version).with_keywords(:diff)
     end
 
-    xit 'can custom sort', :planned do
+    it 'can custom sort' do
       is_expected.to respond_to(:song_list_by_custom)
-        .with_keywords(:genres, :characters, :levels, :versions, :diffs, :sort)
+        .with_keywords(:all, :genres, :characters, :levels, :versions, :diffs, :sort)
     end
 
     xit 'can check difficulty best', priority: :low
