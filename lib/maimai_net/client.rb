@@ -588,7 +588,10 @@ module MaimaiNet
             raw_value = base_class.new(value)
           end
 
-          return raw_value.deluxe_web_id if MaimaiNet::Constant === raw_value
+          if MaimaiNet::Constant === raw_value then
+            fail ArgumentError, "Provided value #{value.inspect} is not a valid value for '#{type}'" if raw_value.deluxe_web_id.nil?
+            return raw_value.deluxe_web_id
+          end
           fail ArgumentError, "expected Integer, Symbol or MaimaiNet::Constant classes. given #{raw_value.class}"
         }
 
