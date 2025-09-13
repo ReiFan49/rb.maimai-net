@@ -151,6 +151,9 @@ module MaimaiNet
       COMBO = %i(fc ap)
       SYNC  = %i(sync fs fsd)
       PLUS  = %i(fc ap fs fsd)
+      RESULT_TO_RECORD = {
+        fsd: :fdx,
+      }
 
       sym_iter = ->(&block){
         (COMBO + SYNC).lazy.flat_map do |bk|
@@ -164,6 +167,7 @@ module MaimaiNet
 
       KEYS = sym_iter.call do |k, bk, plus| k.upcase end
       RECORD = sym_iter.call do |k, bk, plus|
+        bk = RESULT_TO_RECORD.fetch(bk.to_sym, bk).to_s
         [k.upcase, -(plus ? "#{bk}p" : bk)]
       end.to_h
       RESULT = sym_iter.call do |k, bk, plus|
