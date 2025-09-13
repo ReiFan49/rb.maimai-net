@@ -706,6 +706,13 @@ module MaimaiNet
                 dx = best_info.score.deluxe_score
                 dx.max.positive? ? Rational(dx.value, dx.max) : 0
               end.tap &assign_ranks.call(high_index: 3, low_index: 4)
+
+              combo_grades = %i(AP+ AP FC+ FC)
+              played_ary.sort_by do |best_info|
+                flags = best_info.score.flags
+                combo_grades.find_index do |flag| flags.include?(flag) end
+                  .yield_self do |rank| rank.nil? ? combo_grades.size : rank end
+              end.tap &assign_ranks.call(high_index: 6, low_index: 5)
             end
 
           indices
