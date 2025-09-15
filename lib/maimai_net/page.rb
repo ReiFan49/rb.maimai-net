@@ -324,6 +324,38 @@ module MaimaiNet
       end
     end
 
+    class UserOption < Base
+      helper_method :data do
+        settings = {}
+
+        @root.css('select').each do |group_elm|
+          name = group_elm['name'].dup.freeze
+          selected = nil
+          option = group_elm.css('option').map do |choice_elm|
+            selected = choice_elm['value'].to_i if choice_elm['selected']
+            choice = MaimaiNet::UserOption::Choice.new(
+              name,
+              choice_elm['value'].to_i,
+              choice_elm.content.dup,
+            )
+
+            [choice.value, choice]
+          end.to_h
+
+          option = option.values if option.keys.each_cons(2).all? do |x, y| (y - x).pred.zero? end
+          option = MaimaiNet::UserOption::Option.new(
+            name,
+            option,
+            option[selected],
+          )
+
+          settings[name.to_sym] = option
+        end
+
+        settings
+      end
+    end
+
     class FinaleArchive < Base
       STAT_KEYS = %i(
         count_clear
