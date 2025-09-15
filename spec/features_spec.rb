@@ -102,10 +102,14 @@ RSpec.describe MaimaiNet do
 
   it 'has friend support'
 
-  describe 'user configuration', :planned do
-    it 'can fetch configuration', :aggregate_failures
+  describe 'user configuration' do
+    it 'can fetch configuration' do
+      is_expected.to respond_to(:get_gameplay_settings)
+    end
     it 'can update favorites'
-    it 'can update configuration'
+    it 'can update configuration' do
+      is_expected.to respond_to(:set_gameplay_settings).with(1).arguments
+    end
   end
 
   describe 'ranking list', priority: :low do

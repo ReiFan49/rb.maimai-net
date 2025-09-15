@@ -84,4 +84,12 @@ RSpec.describe MaimaiNet::Page, :aggregate_failures do
       ).to all(be_a(MaimaiNet::Model::Record::InfoBest))
     end
   end
+
+  describe 'user option pages' do
+    it 'gameplay settings', pending: !defined?(MaimaiNet::UserOption) do
+      expect(
+        load_page(MaimaiNet::Page::UserOption, 'pages/home_userOption_updateUserOption', &:values)
+      ).to all(be_a(MaimaiNet::UserOption::Option))
+    end
+  end
 end
