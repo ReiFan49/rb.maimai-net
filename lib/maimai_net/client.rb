@@ -397,8 +397,91 @@ module MaimaiNet
       end
     end
 
+    module ConnectionSupportUserOption
+      # obtain current user's gameplay settings
+      # @return [Hash<Symbol, UserOption::Option>]
+      def get_gameplay_settings
+        send_request(
+          'get', '/home/userOption/updateUserOption', nil,
+          response_page: Page::UserOption,
+        )
+      end
+
+      # @!overload set_gameplay_settings(settings)
+      #   @param changes [Hash{Symbol => UserOption::Option}]
+      # @!overload set_gameplay_settings(settings)
+      #   @param changes [Hash{Symbol => UserOption::Choice, Symbol, Integer}]
+      # @return [void]
+      def set_gameplay_settings(changes)
+        fail TypeError, "expected Hash given #{changes.class}" unless Hash === changes
+        fail ArgumentError, "provided empty argument" if changes.empty?
+        changes.each_key do |k|
+          fail TypeError, "expected Symbol keys, given #{k.class}" unless Symbol === k
+        end
+        changes.values.tap do |options|
+          all_options = options.all? do |option| UserOption::Option === option end
+          all_raw     = options.all? do |option|
+            [UserOption::Choice, Symbol, Integer].any? do |cls| cls === option end
+          end
+          option_classes = options.map(&:class).uniq
+          fail TypeError, "expected either all #{UserOption::Option} or any of #{UserOption::Choice}, Symbol, or Integer. given #{option_classes.join(', ')}" unless all_options || all_raw
+        end
+
+        process_settings = ->(body) {
+          page = Page::UserOption.parse(body)
+          root = page.instance_variable_get(:@root)
+          form = root.at_css('form[action][method=post]')
+
+          current = page.data
+          # do not send update query if there's no change
+          return false if changes == current
+
+          update = {}
+          update.update(current, changes) do |key, option_old, option_new|
+            case option_new
+            when UserOption::Option then option_new
+            when Integer, Symbol then
+              option_old.dup.tap do |option|
+                option.select(option_new)
+              end
+            when UserOption::Choice then
+              option_old.dup.tap do |option|
+                fail ArgumentError, "provided choice #{option_new.inspect} is not part of '#{option_old.name}' option." unless option_old.choices.include?(option_new)
+                option.selected = option_new
+              end
+            end
+          end
+
+          data = {}
+
+          form.css('input[type=hidden]').each do |hidden_input|
+            data.store hidden_input['name'], hidden_input['value']
+          end
+
+          update.transform_values do |option|
+            option.selected_id
+          end.tap &data.method(:update)
+
+          send_request(
+            form['method'], form['action'], data,
+          )
+
+          true
+        }
+
+        send_request(
+          'get', '/home/userOption/updateUserOption', nil,
+          response: process_settings,
+        )
+      end
+    end
+
     class Base
       extend ConnectionProvider
+    end
+
+    class Connection
+      include ConnectionSupportUserOption
     end
 
     class << Connection
