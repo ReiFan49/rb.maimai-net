@@ -256,6 +256,8 @@ module MaimaiNet
 
         if Class === request_options[:response_page] && request_options[:response_page] < Page::Base then
           return request_options[:response_page].parse(body).data
+        elsif request_options[:response].respond_to?(:call) then
+          return request_options[:response].call(body)
         end
 
         nil
