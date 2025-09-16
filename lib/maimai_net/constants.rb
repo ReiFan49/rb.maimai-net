@@ -151,6 +151,9 @@ module MaimaiNet
       COMBO = %i(fc ap)
       SYNC  = %i(sync fs fsd)
       PLUS  = %i(fc ap fs fsd)
+      RESULT_TO_RECORD = {
+        fsd: :fdx,
+      }
 
       sym_iter = ->(&block){
         (COMBO + SYNC).lazy.flat_map do |bk|
@@ -164,6 +167,7 @@ module MaimaiNet
 
       KEYS = sym_iter.call do |k, bk, plus| k.upcase end
       RECORD = sym_iter.call do |k, bk, plus|
+        bk = RESULT_TO_RECORD.fetch(bk.to_sym, bk).to_s
         [k.upcase, -(plus ? "#{bk}p" : bk)]
       end.to_h
       RESULT = sym_iter.call do |k, bk, plus|
@@ -441,6 +445,37 @@ module MaimaiNet
 
       extend AutoConstant
       define_new key_enforce: :upcase
+      populate_entries :LIBRARY
+    end
+
+    class BestScoreSortType
+      LIBRARY = %i(
+        achievement_high
+        achievement_low
+        deluxe_high
+        deluxe_low
+        combo_rank_high
+        combo_rank_low
+      ).each_with_index.to_h
+        .transform_values(&:succ)
+
+      def initialize(key)
+        @key = key
+
+        @id            = LIBRARY[key]
+        @deluxe_web_id = LIBRARY[key]
+
+        freeze
+      end
+
+      attr_reader :key
+      attr_reader :id, :deluxe_web_id
+
+      alias to_i   id
+      alias to_sym key
+
+      extend AutoConstant
+      define_new key_enforce: :downcase
       populate_entries :LIBRARY
     end
   end

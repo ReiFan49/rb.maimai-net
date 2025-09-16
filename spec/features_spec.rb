@@ -88,9 +88,9 @@ RSpec.describe MaimaiNet do
       is_expected.to_not respond_to(:song_list_by_version).with_keywords(:diff)
     end
 
-    xit 'can custom sort', :planned do
+    it 'can custom sort' do
       is_expected.to respond_to(:song_list_by_custom)
-        .with_keywords(:genres, :characters, :levels, :versions, :diffs, :sort)
+        .with_keywords(:all, :genres, :characters, :levels, :versions, :diffs, :sort)
     end
 
     xit 'can check difficulty best', priority: :low
@@ -102,10 +102,14 @@ RSpec.describe MaimaiNet do
 
   it 'has friend support'
 
-  describe 'user configuration', :planned do
-    it 'can fetch configuration', :aggregate_failures
+  describe 'user configuration' do
+    it 'can fetch configuration' do
+      is_expected.to respond_to(:get_gameplay_settings)
+    end
     it 'can update favorites'
-    it 'can update configuration'
+    it 'can update configuration' do
+      is_expected.to respond_to(:set_gameplay_settings).with(1).arguments
+    end
   end
 
   describe 'ranking list', priority: :low do

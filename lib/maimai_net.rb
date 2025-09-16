@@ -9,4 +9,5 @@ module MaimaiNet
 
   require 'maimai_net/region'
   require 'maimai_net/client'
+  require 'maimai_net/user_option'
 end

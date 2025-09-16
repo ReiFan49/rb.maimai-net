@@ -9,6 +9,22 @@ module MaimaiNet
   module Client
     using IncludeAutoConstant
 
+    KEY_MAP_CONSTANT = {
+      genre:     MaimaiNet::Genre,
+      character: MaimaiNet::NameGroup,
+      word:      MaimaiNet::NameGroup,
+      level:     MaimaiNet::LevelGroup,
+      version:   MaimaiNet::GameVersion,
+    }.freeze
+
+    PLURAL_KEY_MAP = {
+      genres:     :genre,
+      characters: :character,
+      words:      :word,
+      levels:     :level,
+      versions:   :version,
+    }.freeze
+
     class Base
       include CoreExt
 
@@ -479,13 +495,7 @@ module MaimaiNet
 
         converted_options = options.map do |key, value|
           next [key, value] unless Symbol === value
-          raw_value = case key
-                      when :diff;             MaimaiNet::Difficulty.new(value)
-                      when :genre;            MaimaiNet::Genre.new(value)
-                      when :character, :word; MaimaiNet::NameGroup.new(value)
-                      when :level;            MaimaiNet::LevelGroup.new(value)
-                      when :version;          MaimaiNet::GameVersion.new(value)
-                      end
+          raw_value = KEY_MAP_CONSTANT[key].new(value)
           [key, raw_value]
         end.to_h
 
@@ -549,6 +559,221 @@ module MaimaiNet
         end
       end
 
+      # retrieves player's best score of given difficulty based on given filtering
+      # @param sort    [Integer, Symbol, Constants::BestScoreSortType] preferred sorting
+      # @param diffs   [Integer, Symbol, Constants::Difficulty, Array<Integer, Symbol, Constants::Difficulty] difficulties of preferred filter to fetch from
+      # @param played_only [Boolean] include difficulties without any score registered
+      # @param filters [Hash{Symbol => Object}] set of filters to apply for
+      # @option all [true] fetch all songs without any category grouping, takes no effect when specified as 2nd or later filter.
+      # @option genres [:all, Integer, Symbol, Constants::Genre, Array<Integer, Symbol, Constants::Genre>]
+      # @option characters [:all, Integer, Symbol, Constants::NameGroup, Array<Integer, Symbol, Constants::NameGroup>]
+      # @option levels [:all, Integer, Symbol, Constants::LevelGroup, Array<Integer, Symbol, Constants::LevelGroup>]
+      # @option versions [:all, Integer, Symbol, Constants::GameVersion, Array<Integer, Symbol, Constants::GameVersion>]
+      # @return [Array<MaimaiNet::Model::Record::InfoCategory>] list of best score of each songs on given difficulties without any category grouping applied (through all: true as first)
+      # @return [Hash{Symbol => Array<MaimaiNet::Model::Record::InfoCategory>}] list of best score of each songs on given difficulties grouped based on first category set
+      def song_list_by_custom(sort:, diffs:, played_only: true, **filters)
+        normalize_isc = ->(type, value) {
+          raw_value = value
+
+          case value
+          when Integer
+            return value
+          when Symbol
+            base_class = case type
+                         when :sort; MaimaiNet::BestScoreSortType
+                         when :diff; MaimaiNet::Difficulty
+                         when *KEY_MAP_CONSTANT.keys;
+                           KEY_MAP_CONSTANT[type]
+                         end
+            fail ArgumentError, "expected key (#{type}) is compatible constant class" if base_class.nil?
+
+            raw_value = base_class.new(value)
+          end
+
+          if MaimaiNet::Constant === raw_value then
+            fail ArgumentError, "Provided value #{value.inspect} is not a valid value for '#{type}'" if raw_value.deluxe_web_id.nil?
+            return raw_value.deluxe_web_id
+          end
+          fail ArgumentError, "expected Integer, Symbol or MaimaiNet::Constant classes. given #{raw_value.class}"
+        }
+
+        convert_values = ->(type, base_value) {
+          case type
+          when :all
+            fail ArgumentError, '"all" filter must not a false' unless base_value
+            return :A
+          when *PLURAL_KEY_MAP.keys
+          else fail ArgumentError, "invalid filter '#{type}'"
+          end
+
+          prefix = case type
+                   when :genres;             :G
+                   when :characters, :words; :W
+                   when :levels;             :L
+                   when :versions;           :V
+                   end
+
+          return prefix if Symbol === base_value && base_value.downcase == :all
+
+          base_value.as_unique_array.yield_self do |values|
+            values.map do |raw_value|
+              value = raw_value
+              PLURAL_KEY_MAP[type].yield_self do |singular_type|
+                KEY_MAP_CONSTANT[singular_type]
+              end.yield_self do |cls|
+                fail TypeError, "given Symbol, expected key (#{type}) is compatible constant class" if cls.nil?
+                cls.new(value)
+              end if Symbol === value
+
+              case value
+              when Integer
+                "#{prefix}-#{value}"
+              when MaimaiNet::Genre, MaimaiNet::NameGroup, MaimaiNet::LevelGroup, MaimaiNet::GameVersion
+                "#{prefix}-#{value.deluxe_web_id}"
+              end
+            end
+          end
+        }
+
+        # filtering rules:
+        # - each filter represents an intersection relation
+        # - each variant in a filter represents a union relation
+        # - each variant in a difficulty parameter represents a union relation
+        #
+        # when first filter acts, it populates the song_list first
+        # afterwards, every following filter does:
+        # - all filters (all: true and <filter>: all) are skipped
+        # - set filtered_list flag to true
+        # - removes any song that doesn't intersect with the result
+        head_type, head_value = filters.shift
+        song_list = []
+
+        if head_type === :all then
+          head_values = convert_values.call(head_type, head_value)
+        else
+          head_values = convert_values.call(head_type, head_value)
+        end
+
+        sort  = normalize_isc.call(:sort, sort)
+        diffs = diffs.as_unique_array.map do |diff|
+          normalize_isc.call(:diff, diff)
+        end
+
+        filters.reject! do |key, value| (key == :all && value) || value == :all end
+        processed_filters = filters.map &convert_values
+
+        quick_concat = ->(k, v1, v2) { v1.concat(v2) }
+        send = ->(search, diff) {
+          send_request(
+            'get', "/maimai-mobile/record/musicSort/search",
+            {
+              search:    search,
+              sort:      sort,
+              diff:      diff,
+              playCheck: played_only ? 'on' : nil,
+            }.compact,
+            response_page: Page::MusicList,
+          )
+        }
+        # do not use web_id to compare
+        # web_id differs per source filter
+        get_id = ->(chart_info) {
+          [chart_info.info.type, chart_info.info.title].join(':')
+        }
+
+        # this is potentially adding unnecessary overhead for sorting everything first
+        create_sort_indices = ->(ary) {
+          # index 0 is always unique
+          # index 1 or higher is based on sort rank, nullity gives lowest value automatically
+          indices = Array.new(1 + MaimaiNet::BestScoreSortType::LIBRARY.size) do |j|
+            ary.map.each_with_index do |best_info, i| [best_info.object_id, j.positive? ? ary.size : i] end.to_h
+          end
+
+          assign_ranks = ->(high_index:, low_index:) {
+            ->(sorted) {
+              sorted.each_with_index do |best_info, rank|
+                high_rank = sorted.size - (rank + 1)
+                low_rank  = rank
+
+                indices[high_index][best_info.object_id] = high_rank
+                indices[low_index][best_info.object_id]  = low_rank
+              end
+            }
+          }
+
+          ary.reject do |best_info| best_info.score.nil? end
+            .tap do |played_ary|
+              played_ary.sort_by do |best_info|
+                best_info.score.score
+              end.tap &assign_ranks.call(high_index: 1, low_index: 2)
+
+              played_ary.sort_by do |best_info|
+                dx = best_info.score.deluxe_score
+                dx.max.positive? ? Rational(dx.value, dx.max) : 0
+              end.tap &assign_ranks.call(high_index: 3, low_index: 4)
+
+              combo_grades = %i(AP+ AP FC+ FC)
+              played_ary.sort_by do |best_info|
+                flags = best_info.score.flags
+                combo_grades.find_index do |flag| flags.include?(flag) end
+                  .yield_self do |rank| rank.nil? ? combo_grades.size : rank end
+              end.tap &assign_ranks.call(high_index: 6, low_index: 5)
+            end
+
+          indices
+        }
+
+        head_values.as_unique_array.inject({}) do |result, search_value|
+          diffs.inject({}) do |diff_result, diff_value|
+            response = send.call(search_value, diff_value)
+            response = {} if response.empty?
+
+            diff_result.update(response, &quick_concat)
+          end.yield_self do |diff_result|
+            result.update(diff_result, &quick_concat)
+          end
+        end.yield_self do |result|
+          ids = result.values.inject([], :concat)
+                      .map(&get_id)
+
+          processed_filters.inject(ids) do |filter_result, search_values|
+            break filter_result if filter_result.empty?
+
+            search_values.inject([]) do |search_result, search_value|
+              nil.yield_self do
+                search_value.start_with?('L') ?
+                  diffs :
+                  diffs.min
+              end.as_unique_array.inject([]) do |diff_result, diff_value|
+                response = send.call(search_value, diff_value)
+                response = response.values.inject([], :concat) if Hash === response
+                diff_result.concat response
+              end.yield_self do |diff_result|
+                diff_result.map(&get_id)
+              end.yield_self &search_result.method(:union)
+            end.yield_self &filter_result.method(:intersection)
+          end.yield_self do |filtered_ids|
+            result.transform_values! do |category_info_list|
+              category_info_list.select do |category_info|
+                filtered_ids.include?(get_id.call(category_info))
+              end
+            end.transform_values! do |category_info_list|
+              flat_indices = create_sort_indices.call(category_info_list)
+                .values_at(sort, 0).yield_self do |sort_indices|
+                  head_indices = sort_indices.first.keys
+                  head_indices.map do |k|
+                    [k, sort_indices.map do |h| h[k] end]
+                  end.to_h
+                end
+
+              category_info_list.sort_by do |category_info|
+                flat_indices[category_info.object_id]
+              end
+            end
+          end
+        end
+      end
+
       private
       def assert_parameter(key, value, *constraints)
         raw_value = value
@@ -558,15 +783,10 @@ module MaimaiNet
           MaimaiNet::GameVersion
           raw_value = value.deluxe_web_id
         when Symbol
-          raw_value = case key
-                      when :diff;      MaimaiNet::Difficulty.new(value)
-                      when :genre;     MaimaiNet::Genre.new(value)
-                      when :character; MaimaiNet::NameGroup.new(value)
-                      when :level;     MaimaiNet::LevelGroup.new(value)
-                      when :version;   MaimaiNet::GameVersion.new(value)
-                      else fail TypeError, "given Symbol, expected key is compatible constant class"
-                      end
-          raw_value = raw_value.deluxe_web_id
+          raw_value = KEY_MAP_CONSTANT[key].yield_self do |cls|
+            fail TypeError, "given Symbol, expected key (#{key}) is compatible constant class" if cls.nil?
+            cls.new(value).deluxe_web_id
+          end
         end
 
         fail Error::ClientError, sprintf(
@@ -599,12 +819,92 @@ module MaimaiNet
       end
     end
 
+    module ConnectionSupportUserOption
+      # obtain current user's gameplay settings
+      # @return [Hash<Symbol, UserOption::Option>]
+      def get_gameplay_settings
+        send_request(
+          'get', '/home/userOption/updateUserOption', nil,
+          response_page: Page::UserOption,
+        )
+      end
+
+      # @!overload set_gameplay_settings(settings)
+      #   @param changes [Hash{Symbol => UserOption::Option}]
+      # @!overload set_gameplay_settings(settings)
+      #   @param changes [Hash{Symbol => UserOption::Choice, Symbol, Integer}]
+      # @return [void]
+      def set_gameplay_settings(changes)
+        fail TypeError, "expected Hash given #{changes.class}" unless Hash === changes
+        fail ArgumentError, "provided empty argument" if changes.empty?
+        changes.each_key do |k|
+          fail TypeError, "expected Symbol keys, given #{k.class}" unless Symbol === k
+        end
+        changes.values.tap do |options|
+          all_options = options.all? do |option| UserOption::Option === option end
+          all_raw     = options.all? do |option|
+            [UserOption::Choice, Symbol, Integer].any? do |cls| cls === option end
+          end
+          option_classes = options.map(&:class).uniq
+          fail TypeError, "expected either all #{UserOption::Option} or any of #{UserOption::Choice}, Symbol, or Integer. given #{option_classes.join(', ')}" unless all_options || all_raw
+        end
+
+        process_settings = ->(body) {
+          page = Page::UserOption.parse(body)
+          root = page.instance_variable_get(:@root)
+          form = root.at_css('form[action][method=post]')
+
+          current = page.data
+          # do not send update query if there's no change
+          return false if changes == current
+
+          update = {}
+          update.update(current, changes) do |key, option_old, option_new|
+            case option_new
+            when UserOption::Option then option_new
+            when Integer, Symbol then
+              option_old.dup.tap do |option|
+                option.select(option_new)
+              end
+            when UserOption::Choice then
+              option_old.dup.tap do |option|
+                fail ArgumentError, "provided choice #{option_new.inspect} is not part of '#{option_old.name}' option." unless option_old.choices.include?(option_new)
+                option.selected = option_new
+              end
+            end
+          end
+
+          data = {}
+
+          form.css('input[type=hidden]').each do |hidden_input|
+            data.store hidden_input['name'], hidden_input['value']
+          end
+
+          update.transform_values do |option|
+            option.selected_id
+          end.tap &data.method(:update)
+
+          send_request(
+            form['method'], form['action'], data,
+          )
+
+          true
+        }
+
+        send_request(
+          'get', '/home/userOption/updateUserOption', nil,
+          response: process_settings,
+        )
+      end
+    end
+
     class Base
       extend ConnectionProvider
     end
 
     class Connection
       include ConnectionSupportSongList
+      include ConnectionSupportUserOption
     end
 
     class << Connection

@@ -397,12 +397,20 @@ module MaimaiNet
               # music<Category> page
               if !elm.at_css('.music_score_block').nil? then
                 best_deluxe_score = scan_int(strip(elm.at_css('.music_score_block:nth-of-type(2)')))
-                best_grade = Pathname(URI(src(elm.at_css('.music_score_block ~ img:nth-last-of-type(1):has(~ .clearfix)'))).path).sub_ext('').sub(/.+_/, '').basename.to_s.to_sym
+                flairs = elm.css('.music_score_block ~ img:has(~ .clearfix)').map do |img|
+                  Pathname(URI(src(img)).path).sub_ext('').sub(/.+_/, '').basename.to_s.to_sym.yield_self do |value|
+                    value == :back ? nil : value
+                  end
+                end
+                *record_flags, best_grade = flairs
+                record_flags.compact!
+                record_flags.map! &:to_s
+                record_flags.map! do |key| MaimaiNet::AchievementFlag.new(record_key: key) end
                 score_info = Model::Result::ScoreLite.new(
                   score: strip(elm.at_css('.music_score_block:nth-of-type(1)')).to_f,
                   deluxe_score: Model::Result::Progress.new(**%i(value max).zip(best_deluxe_score).to_h),
                   grade: best_grade,
-                  flags: [],
+                  flags: record_flags.map(&:to_sym),
                 )
               end
 
@@ -419,6 +427,38 @@ module MaimaiNet
         else
           result
         end
+      end
+    end
+
+    class UserOption < Base
+      helper_method :data do
+        settings = {}
+
+        @root.css('select').each do |group_elm|
+          name = group_elm['name'].dup.freeze
+          selected = nil
+          option = group_elm.css('option').map do |choice_elm|
+            selected = choice_elm['value'].to_i if choice_elm['selected']
+            choice = MaimaiNet::UserOption::Choice.new(
+              name,
+              choice_elm['value'].to_i,
+              choice_elm.content.dup,
+            )
+
+            [choice.value, choice]
+          end.to_h
+
+          option = option.values if option.keys.each_cons(2).all? do |x, y| (y - x).pred.zero? end
+          option = MaimaiNet::UserOption::Option.new(
+            name,
+            option,
+            option[selected],
+          )
+
+          settings[name.to_sym] = option
+        end
+
+        settings
       end
     end
 
