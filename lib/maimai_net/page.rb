@@ -264,8 +264,9 @@ module MaimaiNet
         super
 
         start_anchor = @root.at_css('img.title')
-        @score_block = start_anchor.at_css('~ div:nth-of-type(1)')
-        @breakdown_block = start_anchor.at_css('~ div:nth-of-type(2)')
+        @otomodachi_block = start_anchor.at_css('~ div#vsUser > :first-child')
+        @score_block = start_anchor.at_css('~ div:not(#vsUser):nth-of-type(1)')
+        @breakdown_block = start_anchor.at_css('~ div:not(#vsUser):nth-of-type(2)')
       end
 
       helper_method :data do
@@ -294,6 +295,21 @@ module MaimaiNet
           )
         end
 
+        result_otomodachi_rival = nil
+        unless @otomodachi_block.nil? then
+          rival_name   = strip(@otomodachi_block.at_css('> span > div').children[0])
+          rival_score  = strip(@otomodachi_block.at_css('> span > div > span')).to_f
+          rival_rating = int(strip(@otomodachi_block.at_css('> div .rating_block')))
+
+          result_otomodachi_rival = Model::Result::RivalInfo.new(
+            player: Model::PlayerData::Lite.new(
+              name: rival_name,
+              rating: rival_rating,
+            ),
+            score: rival_score,
+          )
+        end
+
         chart_web_id = Model::Chart::WebID.parse(@root.at_css('form[action$="/record/musicDetail/"] input[name=idx]')['value'])
 
         Model::Result::Data.new(
@@ -306,6 +322,7 @@ module MaimaiNet
           breakdown: result_breakdown,
           timing: Model::Result::Offset.new(**Model::Result::Offset.members.zip(result_offset_breakdown).to_h),
           members: result_tour_members,
+          rival: result_otomodachi_rival,
         )
       end
     end
@@ -320,6 +337,87 @@ module MaimaiNet
             track: TrackResultHelper.process(elm),
             ref_web_id: ref_web_id,
           )
+        end.sort_by do |track_ref| track_ref.ref_web_id.time end
+      end
+    end
+
+    class MusicList < Base
+      helper_method :data do
+        track_group_blocks = @root.css('.screw_block')
+        track_segmented_blocks = {}
+        current_group = nil
+
+        if track_group_blocks.empty? then
+          track_segmented_blocks[current_group] = @root.css('div:has(> form[action$="/musicDetail/"] input[name=idx])')
+        else
+          @root.css('.see_through_block ~ div').each do |elm|
+            if elm.classes.include? 'screw_block' then
+              current_group = elm.content
+              next
+            end
+
+            track_segmented_blocks[current_group] ||= Nokogiri::XML::NodeSet.new(@document)
+            track_segmented_blocks[current_group] << elm
+          end
+        end
+
+        result = track_segmented_blocks.transform_values do |elm_group|
+          elm_group.map do |elm|
+            chart_info = Model::Chart::Info.new(
+              web_id: Model::Chart::WebID.parse(elm.at_css('input[name=idx][type=hidden]')['value']),
+              title: elm.at_css('.music_name_block').content,
+              type: Pathname(URI(src(elm.at_css('.music_kind_icon'))).path).sub_ext('').sub(/.+_/, '').basename.to_s,
+              difficulty: Difficulty(Pathname(URI(src(elm.at_css('form > img:nth-of-type(1)'))).path).sub_ext('').sub(/.+_/, '').basename.to_s).id,
+              level_text: elm.at_css('.music_lv_block').content,
+            )
+
+            score_info = nil
+
+            if !elm.at_css('.music_score_block:nth-of-type(1) > div').nil? then
+              if elm.at_css('.music_score_block > div > img').nil? then
+                # musicMybest page
+                Model::Record::InfoBest.new(
+                  info: chart_info,
+                  play_count: get_int(strip(elm.at_css('.music_score_block'))),
+                )
+              else
+                # ratingTargetMusic page
+                best_grade = Pathname(URI(src(elm.at_css('.music_score_block:nth-of-type(1) > div > img'))).path).sub_ext('').sub(/.+_/, '').basename.to_s.to_sym
+                score_info = Model::Result::ScoreOnly.new(
+                  score: strip(elm.at_css('.music_score_block:nth-of-type(1)')).to_f,
+                  grade: best_grade,
+                )
+
+                Model::Record::InfoRating.new(
+                  info: chart_info,
+                  score: score_info,
+                )
+              end
+            else
+              # music<Category> page
+              if !elm.at_css('.music_score_block').nil? then
+                best_deluxe_score = scan_int(strip(elm.at_css('.music_score_block:nth-of-type(2)')))
+                best_grade = Pathname(URI(src(elm.at_css('.music_score_block ~ img:nth-last-of-type(1):has(~ .clearfix)'))).path).sub_ext('').sub(/.+_/, '').basename.to_s.to_sym
+                score_info = Model::Result::ScoreLite.new(
+                  score: strip(elm.at_css('.music_score_block:nth-of-type(1)')).to_f,
+                  deluxe_score: Model::Result::Progress.new(**%i(value max).zip(best_deluxe_score).to_h),
+                  grade: best_grade,
+                  flags: [],
+                )
+              end
+
+              Model::Record::InfoCategory.new(
+                info: chart_info,
+                score: score_info,
+              )
+            end
+          end
+        end
+
+        if result.size == 1 && result.key?(nil) then
+          result[nil]
+        else
+          result
         end
       end
     end

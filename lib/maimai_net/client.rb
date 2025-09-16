@@ -7,7 +7,7 @@ require 'maimai_net/faraday_ext/cookie_jar'
 
 module MaimaiNet
   module Client
-    using IncludeDifficulty
+    using IncludeAutoConstant
 
     class Base
       include CoreExt
@@ -150,6 +150,72 @@ module MaimaiNet
         )
       end
 
+      # access recent session gameplay info
+      # @return [Array<Model::Result::TrackReference>]
+      def recent_plays
+        send_request(
+          'get', '/maimai-mobile/record', nil,
+          response_page: Page::RecentTrack,
+        )
+      end
+
+      # access recent session gameplay info detail
+      # @return [Model::Result::Data]
+      def recent_play_info(ref)
+        id = case ref
+             when Model::Result::TrackReference
+               ref.ref_web_id.to_s
+             when Model::Result::ReferenceWebID
+               ref.to_s
+             when /^\d+,\d+$/
+               ref
+             else
+               fail TypeError, 'expected a valid index ID format'
+             end
+
+        send_request(
+          'get', '/maimai-mobile/record/playlogDetail', {idx: id},
+          response_page: Page::TrackResult,
+        )
+      end
+
+      # access recent session gameplay detailed info
+      # @param [Integer, nil] amount of tracks to fetch
+      # @return [Array<Model::Result::Data>]
+      def recent_play_details(limit = nil)
+        commands = []
+        if Integer === limit then
+          if limit.positive? then
+            commands << ->(plays){plays.last(limit)}
+          else
+            fail ArgumentError, "expected positive size limit, given #{limit}"
+          end
+        end
+        plays = recent_plays.map(&:ref_web_id)
+        commands.each do |cmd| plays.replace cmd[plays] end
+        plays.map(&method(:recent_play_info))
+      end
+
+      # access given set best score
+      # @return [Model::Record::Data]
+      def music_record_info(ref)
+        id = case ref
+             when Model::Chart::WebID::DUMMY, Model::Chart::WebID::DUMMY_ID
+               fail ArgumentError, 'unable to use dummy ID for lookup'
+             when Model::Chart::WebID
+               ref.to_s
+             when String
+               ref
+             else
+               fail TypeError, 'expected a valid index ID format'
+             end
+
+        send_request(
+          'get', '/maimai-mobile/record/musicDetail', {idx: id},
+          response_page: Page::ChartsetRecord,
+        )
+      end
+
       # access finale archive page
       # @return [Model::FinaleArchive::Data] player's archived maimai finale statistics
       def finale_archive
@@ -256,6 +322,8 @@ module MaimaiNet
 
         if Class === request_options[:response_page] && request_options[:response_page] < Page::Base then
           return request_options[:response_page].parse(body).data
+        elsif request_options[:response].respond_to?(:call) then
+          return request_options[:response].call(body)
         end
 
         nil
@@ -395,8 +463,148 @@ module MaimaiNet
       end
     end
 
+    module ConnectionSupportSongList
+      using ObjectAsArray
+
+      # access user's best scores of all music on given sorting mode
+      # @param options [Hash] query parameter
+      # @option genre     [Integer, Constants::Genre]
+      # @option character [Integer, Constants::NameGroup]
+      # @option level     [Integer, Constants::LevelGroup]
+      # @option version   [Integer, Symbol, Constants::GameVersion]
+      # @option diff      [Integer, Constants::Difficulty]
+      # @return [Hash{Symbol => Array<Model::Record::InfoRating>}]
+      def song_list(category, **options)
+        fail ArgumentError, "#{category} is not a valid key" unless /^[A-Z][a-z]+(?:[A-Z][a-z]+)*$/.match?(category)
+
+        converted_options = options.map do |key, value|
+          next [key, value] unless Symbol === value
+          raw_value = case key
+                      when :diff;             MaimaiNet::Difficulty.new(value)
+                      when :genre;            MaimaiNet::Genre.new(value)
+                      when :character, :word; MaimaiNet::NameGroup.new(value)
+                      when :level;            MaimaiNet::LevelGroup.new(value)
+                      when :version;          MaimaiNet::GameVersion.new(value)
+                      end
+          [key, raw_value]
+        end.to_h
+
+        options.update(converted_options)
+
+        options.transform_keys! do |key|
+          if key == :character then
+            :word
+          else
+            key
+          end
+        end
+
+        options.transform_values! do |value|
+          case value
+          when MaimaiNet::Genre, MaimaiNet::NameGroup, MaimaiNet::LevelGroup, MaimaiNet::GameVersion, MaimaiNet::Difficulty
+            value.deluxe_web_id
+          else
+            value
+          end
+        end
+
+        send_request(
+          'get', "/maimai-mobile/record/music#{category}/search", options,
+          response_page: Page::MusicList,
+        )
+      end
+
+      def song_list_by_genre(genres:, diffs:)
+        map_product_combine_result(genres, diffs) do |genre, diff|
+          assert_parameter :diff,  diff,  0..4, 10
+          assert_parameter :genre, genre, 99, 101..106
+
+          song_list :Genre, genre: genre, diff: diff
+        end
+      end
+
+      def song_list_by_title(characters:, diffs:)
+        map_product_combine_result(characters, diffs) do |character, diff|
+          assert_parameter :diff,      diff,      0..4
+          assert_parameter :character, character, 0..15
+
+          song_list :Word, character: character, diff: diff
+        end
+      end
+
+      def song_list_by_level(levels:)
+        levels.as_unique_array.map do |level|
+          assert_parameter :level, level, 1..6, 7..23
+
+          song_list :Level, level: level
+        end
+      end
+
+      def song_list_by_version(versions:, diffs:)
+        map_product_combine_result(versions, diffs) do |version, diff|
+          assert_parameter :diff,    diff,    0..4
+          assert_parameter :version, version, 0..23
+
+          song_list :Version, version: version, diff: diff
+        end
+      end
+
+      private
+      def assert_parameter(key, value, *constraints)
+        raw_value = value
+        case value
+        when MaimaiNet::Difficulty, MaimaiNet::Genre,
+          MaimaiNet::NameGroup, MaimaiNet::LevelGroup,
+          MaimaiNet::GameVersion
+          raw_value = value.deluxe_web_id
+        when Symbol
+          raw_value = case key
+                      when :diff;      MaimaiNet::Difficulty.new(value)
+                      when :genre;     MaimaiNet::Genre.new(value)
+                      when :character; MaimaiNet::NameGroup.new(value)
+                      when :level;     MaimaiNet::LevelGroup.new(value)
+                      when :version;   MaimaiNet::GameVersion.new(value)
+                      else fail TypeError, "given Symbol, expected key is compatible constant class"
+                      end
+          raw_value = raw_value.deluxe_web_id
+        end
+
+        fail Error::ClientError, sprintf(
+          '%s type assertion fails, given %p (%p), expected %s',
+          key, value, raw_value,
+          constraints.join(', '),
+        ) unless constraints.any? do |constraint|
+          if Class === constraint && !constraint.singleton_class? && constraint < MaimaiNet::Constant then
+            constraint.deluxe_web_id?(raw_value)
+          elsif constraint.respond_to?(:include?) then
+            constraint.include?(raw_value)
+          else
+            constraint === raw_value
+          end
+        end
+        nil
+      end
+
+      def map_product_combine_result(*lists, &block)
+        fail ArgumentError, 'no lists given' if lists.empty?
+        head = lists.shift.as_unique_array
+        return head if lists.empty?
+
+        lists.map! &:as_unique_array
+        head.product(*lists).map(&block).inject({}) do |h, data|
+          h.update(data) do |k, v1, v2|
+            v1.concat(v2)
+          end
+        end
+      end
+    end
+
     class Base
       extend ConnectionProvider
+    end
+
+    class Connection
+      include ConnectionSupportSongList
     end
 
     class << Connection
@@ -483,7 +691,7 @@ module MaimaiNet
             end
           end
           @conn.builder.handlers.delete middleware
-          fail ClientError, 'cannot logout with redirection followup' if @conn.builder.handlers.include? middleware
+          fail Error::ClientError, "middleware #{middleware} is not removed yet from the stack" if @conn.builder.handlers.include? middleware
         end
 
         yield

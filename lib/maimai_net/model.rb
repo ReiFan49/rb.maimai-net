@@ -90,6 +90,10 @@ module MaimaiNet
         decoration: Decoration,
         extended: ExtendedInfo,
       )
+      Lite = Base::Struct.new(
+        name: String,
+        rating: Integer,
+      )
       Data = Base::Struct.new(
         plate: InfoPlate,
         statistics: Generic[Hash, Symbol, DifficultyStatistic],
@@ -176,6 +180,11 @@ module MaimaiNet
         alias inspect to_s
       end
 
+      RivalInfo = Base::Struct.new(
+        player: PlayerData::Lite,
+        score:  Float,
+      )
+
       TourMember = Base::Struct.new(
         icon: URI::Generic,
         grade: Integer,
@@ -193,6 +202,11 @@ module MaimaiNet
       Offset = Base::Struct.new(
         early: Integer,
         late: Integer,
+      )
+
+      Challenge = Base::Struct.new(
+        type: Symbol,
+        lives: Progress,
       )
 
       ScoreLite = Base::Struct.new(
@@ -217,7 +231,7 @@ module MaimaiNet
       ) do
         def self.parse(s)
           order, time = s.split(',').first(2).map(&:to_i)
-          new(order: order, time: Time.at(time))
+          new(order: order, time: Time.at(time).localtime(32400).freeze)
         end
 
         def to_str
@@ -231,6 +245,7 @@ module MaimaiNet
         score: Either[Score, ScoreLite],
         order: Integer,
         time: Time,
+        challenge: Optional[Challenge],
       )
 
       TrackReference = Base::Struct.new(
@@ -243,6 +258,7 @@ module MaimaiNet
         breakdown: Generic[Hash, Symbol, Judgment],
         timing: Offset,
         members: Generic[Array, TourMember],
+        rival: Optional[RivalInfo],
       )
     end
 
@@ -250,6 +266,11 @@ module MaimaiNet
       History = Base::Struct.new(
         play_count: Integer,
         last_played: Time,
+      )
+
+      ScoreOnly = Base::Struct.new(
+        score: Float,
+        grade: Symbol,
       )
 
       Score = Base::Struct.new(
@@ -265,6 +286,21 @@ module MaimaiNet
         info: Chart::Info,
         record: Optional[Score],
         history: Optional[History],
+      )
+
+      InfoCategory = Base::Struct.new(
+        info: Chart::Info,
+        score: Optional[Result::ScoreLite],
+      )
+
+      InfoBest = Base::Struct.new(
+        info: Chart::Info,
+        play_count: Integer,
+      )
+
+      InfoRating = Base::Struct.new(
+        info: Chart::Info,
+        score: ScoreOnly,
       )
 
       Data = Base::Struct.new(

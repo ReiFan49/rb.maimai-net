@@ -270,6 +270,179 @@ module MaimaiNet
       define_new key_enforce: :downcase, extra_lookup_keys: %i(abbrev)
       populate_entries :LIBRARY
     end
+
+    class Genre
+      ORIGINAL = {
+        pop_anime:   3,
+        niconico:    4,
+        touhou:      5,
+        sega:        6,
+        variety:     7,
+        original:    8,
+        all:         9,
+      }
+
+      DELUXE_WEBSITE = {
+        all:        99,
+        pop_anime: 101,
+        niconico:  102,
+        touhou:    103,
+        variety:   104,
+        maimai:    105,
+        siblings:  106,
+      }
+
+      include CoreExt
+
+      def initialize(key)
+        @key = key
+
+        @original_id   = ORIGINAL[key]
+        @deluxe_web_id = DELUXE_WEBSITE[key]
+
+        freeze
+      end
+
+      attr_reader :key, :abbrev
+      attr_reader :original_id, :deluxe_web_id
+
+      alias id     key
+      alias to_sym key
+
+      extend AutoConstant
+      define_new key_enforce: :downcase
+      populate_entries :DELUXE_WEBSITE
+    end
+
+    class NameGroup
+      LIBRARY = {
+        japanese_a:    0,
+        japanese_ka:   1,
+        japanese_sa:   2,
+        japanese_ta:   3,
+        japanese_na:   4,
+        japanese_ha:   5,
+        japanese_ma:   6,
+        japanese_ya:   7,
+        japanese_ra:   8,
+        japanese_misc: 9,
+        latin_a:      10,
+        latin_e:      11,
+        latin_k:      12,
+        latin_p:      13,
+        latin_t:      14,
+        latin_misc:   15,
+      }
+
+      ORIGINAL       = LIBRARY
+      DELUXE         = LIBRARY
+      DELUXE_WEBSITE = LIBRARY
+
+      include CoreExt
+
+      def initialize(key)
+        @key = key
+
+        @id            = LIBRARY[key]
+        @deluxe_web_id = DELUXE_WEBSITE[key]
+
+        freeze
+      end
+
+      attr_reader :key
+      attr_reader :id, :deluxe_web_id
+
+      alias to_i   id
+      alias to_sym key
+
+      extend AutoConstant
+      define_new key_enforce: :downcase
+      populate_entries :LIBRARY
+    end
+
+    class LevelGroup
+      LIBRARY = (1..15).flat_map do |i|
+          i < 7 ? i : [i, :"#{i}+"]
+        end.map do |k| :"L#{k}" end
+        .each_with_index.map do |k, i|
+          [k, i.succ]
+        end.to_h
+
+      DELUXE         = LIBRARY
+      DELUXE_WEBSITE = LIBRARY
+
+      include CoreExt
+
+      def initialize(key)
+        @key = key
+
+        @id            = LIBRARY[key]
+        @deluxe_id     = DELUXE[key]
+        @deluxe_web_id = DELUXE_WEBSITE[key]
+
+        freeze
+      end
+
+      attr_reader :key
+      attr_reader :id, :deluxe_id, :deluxe_web_id
+
+      alias to_i   id
+      alias to_sym key
+
+      extend AutoConstant
+      define_new key_enforce: :upcase
+      populate_entries :LIBRARY
+    end
+
+    class GameVersion
+      ORIGINAL_VERSIONS = %w(maimai GReeN ORANGE PiNK MURASAKi MiLK FiNALE)
+      DELUXE_VERSIONS = %w(Deluxe Splash UNiVERSE FESTiVAL BUDDiES PRiSM)
+
+      VERSIONS       = {}.tap do |ver|
+        ORIGINAL_VERSIONS.slice(0...-1).flat_map do |k|
+          [k, "#{k}_PLUS"]
+        end.push(ORIGINAL_VERSIONS.last).map(&:upcase).map(&:to_sym).each_with_index.map do |k, i|
+          case i
+          when 0..8
+            [k, 100 + i * 10]
+          else
+            [k, [180 + (i - 8) * 5, 199].min]
+          end
+        end.to_h.tap(&ver.method(:update))
+        DELUXE_VERSIONS.map(&:upcase).flat_map do |k|
+          [k, "#{k}_PLUS"]
+        end.map(&:to_sym).each_with_index.map do |k, i|
+          [k, 200 + i * 5]
+        end.to_h.tap(&ver.method(:update))
+      end
+      ORIGINAL       = VERSIONS.select do |k, v| v < 200 end
+      DELUXE         = VERSIONS.select do |k, v| v >= 200 end.transform_values do |v| v - 100 end
+      LIBRARY        = VERSIONS
+      DELUXE_WEBSITE = LIBRARY.keys.each_with_index.to_h
+
+      include CoreExt
+
+      def initialize(key)
+        @key = key
+
+        @id            = LIBRARY[key]
+        @original_id   = ORIGINAL[key]
+        @deluxe_id     = DELUXE[key]
+        @deluxe_web_id = DELUXE_WEBSITE[key]
+
+        freeze
+      end
+
+      attr_reader :key
+      attr_reader :id, :original_id, :deluxe_id, :deluxe_web_id
+
+      alias to_i   id
+      alias to_sym key
+
+      extend AutoConstant
+      define_new key_enforce: :upcase
+      populate_entries :LIBRARY
+    end
   end
 
   include Constants
