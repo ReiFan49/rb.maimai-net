@@ -6,7 +6,7 @@ module MaimaiNet
     # @!api private
     # scope extension to add various html-related method
     class HelperBlock < ::BasicObject
-      include CoreExt
+      include ModuleExt
 
       # copies page instance variables
       # @param page [Page::Base] page object tp refer
@@ -117,7 +117,7 @@ module MaimaiNet
       # @return [void]
       def self.extended(cls)
         cls.class_exec do
-          include CoreExt::AddInternalMutex
+          include ModuleExt::AddInternalMutex
         end
       end
     end

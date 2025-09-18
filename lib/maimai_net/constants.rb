@@ -174,7 +174,7 @@ module MaimaiNet
         [k.upcase, -(plus ? "#{bk}plus" : bk)]
       end.to_h
 
-      include CoreExt
+      include ModuleExt
 
       def initialize(key)
         @key = key
@@ -248,7 +248,7 @@ module MaimaiNet
         remaster: :RMS,
       }
 
-      include CoreExt
+      include ModuleExt
 
       def initialize(key)
         @key = key
@@ -296,7 +296,7 @@ module MaimaiNet
         siblings:  106,
       }
 
-      include CoreExt
+      include ModuleExt
 
       def initialize(key)
         @key = key
@@ -342,7 +342,7 @@ module MaimaiNet
       DELUXE         = LIBRARY
       DELUXE_WEBSITE = LIBRARY
 
-      include CoreExt
+      include ModuleExt
 
       def initialize(key)
         @key = key
@@ -375,7 +375,7 @@ module MaimaiNet
       DELUXE         = LIBRARY
       DELUXE_WEBSITE = LIBRARY
 
-      include CoreExt
+      include ModuleExt
 
       def initialize(key)
         @key = key
@@ -424,7 +424,7 @@ module MaimaiNet
       LIBRARY        = VERSIONS
       DELUXE_WEBSITE = LIBRARY.keys.each_with_index.to_h
 
-      include CoreExt
+      include ModuleExt
 
       def initialize(key)
         @key = key

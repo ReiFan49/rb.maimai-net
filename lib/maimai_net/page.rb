@@ -5,8 +5,8 @@ require 'nokogiri'
 module MaimaiNet
   module Page
     class Base
-      include CoreExt
-      include CoreExt::MethodCache
+      include ModuleExt
+      include ModuleExt::MethodCache
 
       cache_method :data
 

@@ -66,7 +66,7 @@ module MaimaiNet::Model
   # defines a generic typing
   class Generic
     include Variant
-    include MaimaiNet::CoreExt::MethodCache
+    include MaimaiNet::ModuleExt::MethodCache
 
     def initialize(cls, variants)
       @class    = cls
@@ -122,7 +122,7 @@ module MaimaiNet::Model
 
   class Either
     include Variant
-    include MaimaiNet::CoreExt::MethodCache
+    include MaimaiNet::ModuleExt::MethodCache
 
     def initialize(variants)
       @variants = variants.freeze

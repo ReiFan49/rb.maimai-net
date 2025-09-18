@@ -37,7 +37,7 @@ module MaimaiNet
     end
 
     class << self
-      include CoreExt::MethodCache
+      include ModuleExt::MethodCache
 
       # @return [Array<Symbol>] list of available regions
       cache_method :list do
