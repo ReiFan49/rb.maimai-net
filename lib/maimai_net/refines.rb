@@ -2,12 +2,7 @@ module MaimaiNet
   # includes AutoConstants into invokable class
   module IncludeAutoConstant
     refine Kernel do
-      MaimaiNet.constants.each do |k|
-        cls = MaimaiNet.const_get(k)
-        next unless Class === cls && cls < MaimaiNet::Constant
-
-        define_method k do |key| cls.new(key) end
-      end
+      include CoreExt::KernelAutoConstantInclusion
     end
   end
 

@@ -26,7 +26,7 @@ module MaimaiNet
     }.freeze
 
     class Base
-      include CoreExt
+      include ModuleExt
 
       def initialize(username = nil, password = nil)
         @username = username
