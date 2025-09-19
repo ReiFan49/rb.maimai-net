@@ -18,7 +18,7 @@ jobs:
       packages: write
       id-token: write
     env:
-      RUBY_VERSION: '2.7'
+      RUBY_VERSION: '3.0'
     steps:
     - uses: actions/checkout@v4
     - name: Set up Ruby ${{ env.RUBY_VERSION }}
