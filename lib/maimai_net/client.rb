@@ -312,11 +312,46 @@ module MaimaiNet
       # @param url    [URI]            request path
       # @param data   [String, Object] request body
       # @param opts   [Hash{Symbol => Object}]
-      # @option response_page [Class<Page::Base>]  a callback to convert response into a page object
+      # @option response_page [Class<Page::Base>] response parser class
+      # @option response      [#call]             response method, takes one argument, response body raw.
       # @return [Model::Base::Struct] returns page data based from provided response_page field
       # @return [void]
       def send_request(method, url, data, **opts)
         fail NotImplementedError, 'abstract method called' if Connection == method(__method__).owner
+      end
+
+      # wraps form-based submission request
+      # @param endpoint      [URI]                    request path
+      # @param query         [String, Object]         request query
+      # @parse response_page [Class<Page::Base>]      fetch response parser class
+      # @yieldparam data     [Hash{String => Object}] request data
+      # @yieldparam content                          parsed page content
+      # @yieldreturn         [Boolean] any falsy-values will stop the processing
+      # @return [void]
+      def fetch_and_submit_form(endpoint, query, response_page:)
+        send_request(
+          'get', endpoint, query,
+          response: ->(body) {
+            page = response_page.parse(body)
+            root = page.instance_variable_get(:@root)
+            form = root.at_css('form[action][method=post]')
+
+            data = {}
+
+            form.css('input[type=hidden]').each do |hidden_input|
+              data.store hidden_input['name'], hidden_input['value']
+            end
+
+            result = yield data, page.data
+            return unless result
+
+            send_request(
+              form['method'], form['action'], data,
+            )
+
+            true
+          },
+        )
       end
 
       private
@@ -849,14 +884,12 @@ module MaimaiNet
           fail TypeError, "expected either all #{UserOption::Option} or any of #{UserOption::Choice}, Symbol, or Integer. given #{option_classes.join(', ')}" unless all_options || all_raw
         end
 
-        process_settings = ->(body) {
-          page = Page::UserOption.parse(body)
-          root = page.instance_variable_get(:@root)
-          form = root.at_css('form[action][method=post]')
-
-          current = page.data
+        fetch_and_submit_form(
+          '/home/userOption/updateUserOption', nil,
+          response_page: Page::UserOption,
+        ) do |data, current|
           # do not send update query if there's no change
-          return false if changes == current
+          return if changes == current
 
           update = {}
           update.update(current, changes) do |key, option_old, option_new|
@@ -874,27 +907,12 @@ module MaimaiNet
             end
           end
 
-          data = {}
-
-          form.css('input[type=hidden]').each do |hidden_input|
-            data.store hidden_input['name'], hidden_input['value']
-          end
-
           update.transform_values do |option|
             option.selected_id
           end.tap &data.method(:update)
 
-          send_request(
-            form['method'], form['action'], data,
-          )
-
           true
-        }
-
-        send_request(
-          'get', '/home/userOption/updateUserOption', nil,
-          response: process_settings,
-        )
+        end
       end
     end
 
@@ -946,30 +964,13 @@ module MaimaiNet
           song
         end
 
-        process = ->(body) {
-          page = Page::UserOption.parse(body)
-          root = page.instance_variable_get(:@root)
-          form = root.at_css('form[action][method=post]')
-
-          data = {}
-
-          form.css('input[type=hidden]').each do |hidden_input|
-            data.store hidden_input['name'], hidden_input['value']
-          end
-
+        fetch_and_submit_form(
+          '/home/userOption/favorite/updateMusic', nil,
+          response_page: Page::UserFavorite,
+        ) do |data|
           data[:music] = songs
-
-          send_request(
-            form['method'], form['action'], data,
-          )
-
           true
-        }
-
-        send_request(
-          'get', '/home/userOption/favorite/updateMusic', nil,
-          response: process,
-        )
+        end
       end
     end
 
