@@ -103,13 +103,22 @@ RSpec.describe MaimaiNet do
   it 'has friend support'
 
   describe 'user configuration' do
+    it 'can fetch favorites' do
+      is_expected.to respond_to(:get_favorites)
+    end
     it 'can fetch configuration' do
       is_expected.to respond_to(:get_gameplay_settings)
     end
-    it 'can update favorites'
+    it 'can update favorites' do
+      is_expected.to respond_to(:set_favorites).with(1).arguments
+    end
     it 'can update configuration' do
       is_expected.to respond_to(:set_gameplay_settings).with(1).arguments
     end
+  end
+
+  it 'can fetch hashed song ids' do
+    is_expected.to respond_to(:get_songs)
   end
 
   it 'achievement rate chart list', priority: :low
