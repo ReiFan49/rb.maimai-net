@@ -216,9 +216,9 @@ module MaimaiNet
       # @return [Model::Record::Data]
       def music_record_info(ref)
         id = case ref
-             when Model::Chart::WebID::DUMMY, Model::Chart::WebID::DUMMY_ID
+             when Model::WebID::DUMMY, Model::WebID::DUMMY_ID
                fail ArgumentError, 'unable to use dummy ID for lookup'
-             when Model::Chart::WebID
+             when Model::WebID
                ref.to_s
              when String
                ref
@@ -898,6 +898,81 @@ module MaimaiNet
       end
     end
 
+    module ConnectionSupportUserFavorite
+      # get current available songs
+      # @return [Array<Model::SongEntry>]
+      # @see #get_favorites
+      def get_songs
+        send_request(
+          'get', '/home/userOption/favorite/updateMusic', nil,
+          response_page: Page::UserFavorite,
+        ).map(&:song)
+      end
+
+      # get current user favorite songs
+      # @return [Array<Model::SongEntry>]
+      # @see #get_songs
+      def get_favorites
+        send_request(
+          'get', '/home/userOption/favorite/updateMusic', nil,
+          response_page: Page::UserFavorite,
+        ).select(&:flag).map(&:song)
+      end
+
+      # set current user favorite songs
+      # @param songs [Array<Model::SongFavoriteInfo, Model::SongEntry, Model::WebID>] list of songs to mark as favorite
+      # @return [void]
+      def set_favorites(songs)
+        fail TypeError, "expected Array, given #{songs.class}" unless Array === songs
+        song_classes = songs.map(&:class).uniq
+        fail TypeError, sprintf(
+          'expected Array of <%1$p, %2$p, %3$p>. given %4$p',
+          Model::SongFavoriteInfo, Model::SongEntry, Model::WebID,
+          song_classes,
+        ) unless songs.all? do |song|
+            [Model::SongFavoriteInfo, Model::SongEntry, Model::WebID].any? do |cls| cls === song end
+          end
+
+        songs.select! do |info|
+          Model::SongFavoriteInfo === info ? info.flag : true
+        end
+
+        fail ArgumentError, "expected array size is 30 or less, given #{songs.size}" if songs.size > 30
+
+        songs.map! do |info|
+          song = info
+          song = info.song if Model::SongFavoriteInfo === info
+          song = info.web_id if Model::SongEntry
+          song
+        end
+
+        process = ->(body) {
+          page = Page::UserOption.parse(body)
+          root = page.instance_variable_get(:@root)
+          form = root.at_css('form[action][method=post]')
+
+          data = {}
+
+          form.css('input[type=hidden]').each do |hidden_input|
+            data.store hidden_input['name'], hidden_input['value']
+          end
+
+          data[:music] = songs
+
+          send_request(
+            form['method'], form['action'], data,
+          )
+
+          true
+        }
+
+        send_request(
+          'get', '/home/userOption/favorite/updateMusic', nil,
+          response: process,
+        )
+      end
+    end
+
     class Base
       extend ConnectionProvider
     end
@@ -905,6 +980,7 @@ module MaimaiNet
     class Connection
       include ConnectionSupportSongList
       include ConnectionSupportUserOption
+      include ConnectionSupportUserFavorite
     end
 
     class << Connection

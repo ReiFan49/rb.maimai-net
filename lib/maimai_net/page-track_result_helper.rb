@@ -4,7 +4,7 @@ module MaimaiNet
       using IncludeAutoConstant
       def self.process(
         elm,
-        web_id: MaimaiNet::Model::Chart::WebID::DUMMY,
+        web_id: MaimaiNet::Model::WebID::DUMMY,
         result_combo: nil,
         result_sync_score: nil
       )
