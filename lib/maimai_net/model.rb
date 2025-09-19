@@ -100,33 +100,33 @@ module MaimaiNet
       )
     end
 
+    WebID = Base::Struct.new(
+      item_hash: String,
+      item_key: String,
+    ) do
+      def self.parse(s)
+        hash, key = s[0, 128].b, s[128, s.size - 128].unpack1('m*').unpack1('H*')
+        new(item_hash: -hash, item_key: -key)
+      end
+
+      def to_str
+        self.item_hash + [[self.item_key].pack('H*')].pack('m0')
+      end
+      alias to_s to_str
+    end
+
+    class WebID
+      DUMMY_ID = -('0' * 128 + 'A' * 44)
+      DUMMY = parse(DUMMY_ID)
+      def DUMMY.inspect
+        '#<%s %s>' % [
+          self.class,
+          -'dummy',
+        ]
+      end
+    end
+
     module Chart
-      WebID = Base::Struct.new(
-        item_hash: String,
-        item_key: String,
-      ) do
-        def self.parse(s)
-          hash, key = s[0, 128].b, s[128, s.size - 128].unpack1('m*').unpack1('H*')
-          new(item_hash: -hash, item_key: -key)
-        end
-
-        def to_str
-          self.item_hash + [[self.item_key].pack('H*')].pack('m0')
-        end
-        alias to_s to_str
-      end
-
-      class WebID
-        DUMMY_ID = -('0' * 128 + 'A' * 44)
-        DUMMY = parse(DUMMY_ID)
-        def DUMMY.inspect
-          '#<%s %s>' % [
-            self.class,
-            -'dummy',
-          ]
-        end
-      end
-
       info_base = {
         title: String,
         type: String,
@@ -274,7 +274,7 @@ module MaimaiNet
       )
 
       Score = Base::Struct.new(
-        web_id: Chart::WebID,
+        web_id: WebID,
         score: Float,
         deluxe_score: Result::Progress,
         grade: Symbol,

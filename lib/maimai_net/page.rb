@@ -193,7 +193,7 @@ module MaimaiNet
           difficulty = Difficulty(deluxe_web_id: form_inputs[:diff].to_i)
           difficulty_data[difficulty.abbrev] ||= {}
           difficulty_data[difficulty.abbrev].store(:info, Model::Chart::Info.new(
-            web_id:     Model::Chart::WebID.parse(form_inputs[:idx]),
+            web_id:     Model::WebID.parse(form_inputs[:idx]),
             title:      song_name,
             type:       set_type,
             difficulty: difficulty.id,
@@ -310,7 +310,7 @@ module MaimaiNet
           )
         end
 
-        chart_web_id = Model::Chart::WebID.parse(@root.at_css('form[action$="/record/musicDetail/"] input[name=idx]')['value'])
+        chart_web_id = Model::WebID.parse(@root.at_css('form[action$="/record/musicDetail/"] input[name=idx]')['value'])
 
         Model::Result::Data.new(
           track: TrackResultHelper.process(
@@ -364,7 +364,7 @@ module MaimaiNet
         result = track_segmented_blocks.transform_values do |elm_group|
           elm_group.map do |elm|
             chart_info = Model::Chart::Info.new(
-              web_id: Model::Chart::WebID.parse(elm.at_css('input[name=idx][type=hidden]')['value']),
+              web_id: Model::WebID.parse(elm.at_css('input[name=idx][type=hidden]')['value']),
               title: elm.at_css('.music_name_block').content,
               type: Pathname(URI(src(elm.at_css('.music_kind_icon'))).path).sub_ext('').sub(/.+_/, '').basename.to_s,
               difficulty: Difficulty(Pathname(URI(src(elm.at_css('form > img:nth-of-type(1)'))).path).sub_ext('').sub(/.+_/, '').basename.to_s).id,

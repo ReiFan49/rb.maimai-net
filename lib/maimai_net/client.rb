@@ -216,9 +216,9 @@ module MaimaiNet
       # @return [Model::Record::Data]
       def music_record_info(ref)
         id = case ref
-             when Model::Chart::WebID::DUMMY, Model::Chart::WebID::DUMMY_ID
+             when Model::WebID::DUMMY, Model::WebID::DUMMY_ID
                fail ArgumentError, 'unable to use dummy ID for lookup'
-             when Model::Chart::WebID
+             when Model::WebID
                ref.to_s
              when String
                ref
