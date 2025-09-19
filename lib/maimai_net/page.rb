@@ -462,6 +462,25 @@ module MaimaiNet
       end
     end
 
+    class UserFavorite < Base
+      helper_method :data do
+        [].tap do |music_list|
+          @root.css('form[action][method=post] .screw_block').each do |genre_elm|
+            genre_elm.css('+ .scroll_point + div[name] input[type=checkbox]').map do |song_elm|
+              Model::SongFavoriteInfo.new(
+                song: Model::SongEntry.new(
+                  web_id: Model::WebID.parse(song_elm['value']),
+                  title: strip(song_elm.at_css('+ .favorite_music_name')),
+                  genre: genre_elm.content,
+                ),
+                flag: !song_elm['checked'].nil?,
+              )
+            end.tap &music_list.method(:concat)
+          end
+        end
+      end
+    end
+
     class FinaleArchive < Base
       STAT_KEYS = %i(
         count_clear

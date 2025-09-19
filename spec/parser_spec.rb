@@ -115,5 +115,11 @@ RSpec.describe MaimaiNet::Page, :aggregate_failures do
         load_page(MaimaiNet::Page::UserOption, 'pages/home_userOption_updateUserOption', &:values)
       ).to all(be_a(MaimaiNet::UserOption::Option))
     end
+
+    it 'favorite songs', pending: !defined?(MaimaiNet::Page::UserFavorite) do
+      expect(
+        load_page(MaimaiNet::Page::UserFavorite, 'pages/home_userOption_favorite_updateMusic')
+      ).to all(be_a(MaimaiNet::Model::SongFavoriteInfo))
+    end
   end
 end

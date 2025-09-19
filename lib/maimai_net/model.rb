@@ -163,6 +163,17 @@ module MaimaiNet
       )
     end
 
+    SongEntry = Base::Struct.new(
+      web_id: WebID,
+      title: String,
+      genre: String,
+    )
+
+    SongFavoriteInfo = Base::Struct.new(
+      song: SongEntry,
+      flag: Boolean,
+    )
+
     PhotoUpload = Base::Struct.new(
       info: Chart::InfoLite,
       url: URI::Generic,
