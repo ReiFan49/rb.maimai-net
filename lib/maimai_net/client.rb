@@ -312,7 +312,8 @@ module MaimaiNet
       # @param url    [URI]            request path
       # @param data   [String, Object] request body
       # @param opts   [Hash{Symbol => Object}]
-      # @option response_page [Class<Page::Base>]  a callback to convert response into a page object
+      # @option response_page [Class<Page::Base>] response parser class
+      # @option response      [#call]             response method, takes one argument, response body raw.
       # @return [Model::Base::Struct] returns page data based from provided response_page field
       # @return [void]
       def send_request(method, url, data, **opts)
