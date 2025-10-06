@@ -225,6 +225,7 @@ module MaimaiNet
         deluxe_score: Progress,
         grade: Symbol,
         flags: Generic[Array, Symbol],
+        position: Optional[Integer],
       )
 
       Score = Base::Struct.new(
@@ -234,6 +235,7 @@ module MaimaiNet
         sync_score: Progress,
         grade: Symbol,
         flags: Generic[Array, Symbol],
+        position: Optional[Integer],
       )
 
       ReferenceWebID = Base::Struct.new(

@@ -42,6 +42,9 @@ module MaimaiNet
             when /_dummy$/; nil
             end
           end.compact
+          result_position = result_block.at_css('.playlog_result_innerblock img.playlog_matching_icon')&.yield_self do |elm|
+            /^\d+/.match(::Kernel.Pathname(::Kernel.URI(src(elm)).path).sub_ext('')&.basename.to_s)[0].to_i
+          end
 
           challenge_info = nil
           result_block.at_css('div:has(> .playlog_life_block)')&.tap do |elm|
@@ -63,6 +66,7 @@ module MaimaiNet
             end.to_h,
             grade: result_grade,
             flags: result_flags.map(&:to_sym),
+            position: result_position,
           }
 
           score_cls = score_data.key?(:combo) && score_data.key?(:sync_score) ?

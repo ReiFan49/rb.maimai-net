@@ -87,6 +87,12 @@ RSpec.describe MaimaiNet::Page, :aggregate_failures do
       expect(data).to be_a(MaimaiNet::Model::Result::Data)
       expect(data&.rival).to be_a(MaimaiNet::Model::Result::RivalInfo)
     end
+
+    it 'with multiplayer info' do
+      data = load_page(MaimaiNet::Page::TrackResult, 'pages/record_playlogDetail_friends', 'pages/record_playlogDetail')
+      expect(data).to be_a(MaimaiNet::Model::Result::Data)
+      expect(data&.track&.score&.position).to be_a(Integer)
+    end
   end
 
   describe 'song list pages' do
