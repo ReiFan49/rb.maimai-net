@@ -4,6 +4,9 @@ module MaimaiNet
     refine Kernel do
       include CoreExt::AutoConstantInclusion
     end
+    refine BasicObject do
+      include CoreExt::AutoConstantInclusion
+    end
   end
 
   # converts any object into a single-element array unless it's an array
