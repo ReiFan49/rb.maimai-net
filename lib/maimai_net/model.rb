@@ -131,6 +131,8 @@ module MaimaiNet
         title: String,
         type: String,
         difficulty: Integer,
+        variant: Optional[String],
+        flags: Optional[Integer],
       }
 
       InfoLite = Base::Struct.new(**info_base) do
