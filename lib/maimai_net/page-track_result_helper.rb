@@ -10,7 +10,7 @@ module MaimaiNet
       )
         HelperBlock.send(:new, nil).instance_exec do
           header_block = elm.at_css('.playlog_top_container')
-          difficulty = ::Kernel.Difficulty(::Kernel.Pathname(src(header_block.at_css('img.playlog_diff'))).sub_ext('').sub(/.+_/, '').basename)
+          difficulty = Difficulty(::Kernel.Pathname(src(header_block.at_css('img.playlog_diff'))).sub_ext('').sub(/.+_/, '').basename)
 
           dx_container_classes = MaimaiNet::Difficulty::DELUXE.select do |k, v| v.positive? end
             .keys.map do |k| ".playlog_#{k}_container" end
@@ -38,10 +38,13 @@ module MaimaiNet
           result_flags = result_block.css('.playlog_result_innerblock > img').map do |elm|
             flag = ::Kernel.Pathname(::Kernel.URI(src(elm)).path).sub_ext('')&.basename.to_s
             case flag
-            when *MaimaiNet::AchievementFlag::RESULT.values; MaimaiNet::AchievementFlag.new(result_key: flag)
+            when *MaimaiNet::AchievementFlag::RESULT.values; AchievementFlag(result_key: flag)
             when /_dummy$/; nil
             end
           end.compact
+          result_position = result_block.at_css('.playlog_result_innerblock img.playlog_matching_icon')&.yield_self do |elm|
+            /^\d+/.match(::Kernel.Pathname(::Kernel.URI(src(elm)).path).sub_ext('')&.basename.to_s)[0].to_i
+          end
 
           challenge_info = nil
           result_block.at_css('div:has(> .playlog_life_block)')&.tap do |elm|
@@ -63,6 +66,7 @@ module MaimaiNet
             end.to_h,
             grade: result_grade,
             flags: result_flags.map(&:to_sym),
+            position: result_position,
           }
 
           score_cls = score_data.key?(:combo) && score_data.key?(:sync_score) ?

@@ -2,7 +2,10 @@ module MaimaiNet
   # includes AutoConstants into invokable class
   module IncludeAutoConstant
     refine Kernel do
-      include CoreExt::KernelAutoConstantInclusion
+      include CoreExt::AutoConstantInclusion
+    end
+    refine BasicObject do
+      include CoreExt::AutoConstantInclusion
     end
   end
 

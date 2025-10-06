@@ -45,8 +45,8 @@ RSpec.describe MaimaiNet do
         is_expected.to include(:rival)
       end
 
-      it 'has full sync support', :planned do
-        is_expected.to include(:friends)
+      it 'has full sync support' do
+        is_expected.to include(:players)
       end
     end
 

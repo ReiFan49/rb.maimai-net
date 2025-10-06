@@ -1,3 +1,5 @@
+require 'forwardable'
+
 module MaimaiNet
   require 'maimai_net/version'
   require 'maimai_net/error'

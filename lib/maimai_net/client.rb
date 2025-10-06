@@ -61,11 +61,15 @@ module MaimaiNet
     end
 
     class Connection
+      extend Forwardable
+
       # @param client [Base] client data
       def initialize(client)
         @client = client
         @conn   = nil
       end
+
+      def_delegator :@client, :cookies
 
       # automatically private hook methods
       # @return [void]
