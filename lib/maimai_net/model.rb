@@ -3,31 +3,30 @@ module MaimaiNet
   module Model
     require 'maimai_net/model-typing'
 
-    module Base
-      class Struct < ::Struct
-        using GenericComparison
-        # @param kwargs [Hash] options are strong-typed based on class definition
-        def initialize(**kwargs)
-          props = self.class.instance_variable_get(:@_properties)
-          keys = props.keys
-          optional_keys = props.select do |k, pr|
-            Either === pr[:class] &&
-            pr[:class].variants.include?(NilClass)
-          end.keys
+    class Base < ::Struct
+      using GenericComparison
+      # @param kwargs [Hash] options are strong-typed based on class definition
+      def initialize(**kwargs)
+        props = self.class.instance_variable_get(:@_properties)
+        keys = props.keys
+        optional_keys = props.select do |k, pr|
+          Either === pr[:class] &&
+          pr[:class].variants.include?(NilClass)
+        end.keys
 
-          missing_keys = keys - (kwargs.keys | optional_keys)
-          fail KeyError, "#{missing_keys.join(', ')} is not defined for #{self.class}" unless missing_keys.empty?
-          kwargs.each do |key, value|
-            fail KeyError, "#{key} is not defined as struct member" unless keys.include?(key)
-            class_str = value.respond_to?(:map_class) ? value.map_class : value.class
-            fail TypeError, "#{key} type mismatch, given #{class_str}, expected #{props[key][:class]}" unless props[key][:class] === value
-          end
-
-          args = kwargs.values_at(*keys)
-          super(*args)
+        missing_keys = keys - (kwargs.keys | optional_keys)
+        fail KeyError, "#{missing_keys.join(', ')} is not defined for #{self.class}" unless missing_keys.empty?
+        kwargs.each do |key, value|
+          fail KeyError, "#{key} is not defined as struct member" unless keys.include?(key)
+          class_str = value.respond_to?(:map_class) ? value.map_class : value.class
+          fail TypeError, "#{key} type mismatch, given #{class_str}, expected #{props[key][:class]}" unless props[key][:class] === value
         end
+
+        args = kwargs.values_at(*keys)
+        super(*args)
       end
-      class << Struct
+
+      class << self
         # creates a strong-typed struct data
         # @param  opts [Hash{Symbol => Module}]
         #   list of struct members along with respective type definition
@@ -52,7 +51,7 @@ module MaimaiNet
       end
     end
 
-    SongCount = Base::Struct.new(achieved: Integer, total: Integer) do
+    SongCount = Base.new(achieved: Integer, total: Integer) do
       def to_s
         "#{achieved}/#{total}"
       end
@@ -60,7 +59,7 @@ module MaimaiNet
     end
 
     module PlayerCommon
-      Info = Base::Struct.new(
+      Info = Base.new(
         name: String,
         title: String,
         grade: String,
@@ -68,16 +67,16 @@ module MaimaiNet
     end
 
     module PlayerData
-      Decoration = Base::Struct.new(
+      Decoration = Base.new(
         icon: URI::Generic,
       )
-      ExtendedInfo = Base::Struct.new(
+      ExtendedInfo = Base.new(
         rating: Integer,
         class_grade: String,
         partner_star_total: Integer,
       )
 
-      DifficultyStatistic = Base::Struct.new(
+      DifficultyStatistic = Base.new(
         clears: SongCount,
         ranks: Generic[Hash, Symbol, SongCount],
         dx_ranks: Generic[Hash, Integer, SongCount],
@@ -85,22 +84,22 @@ module MaimaiNet
         sync_flags: Generic[Hash, Symbol, SongCount],
       )
 
-      InfoPlate = Base::Struct.new(
+      InfoPlate = Base.new(
         info: PlayerCommon::Info,
         decoration: Decoration,
         extended: ExtendedInfo,
       )
-      Lite = Base::Struct.new(
+      Lite = Base.new(
         name: String,
         rating: Integer,
       )
-      Data = Base::Struct.new(
+      Data = Base.new(
         plate: InfoPlate,
         statistics: Generic[Hash, Symbol, DifficultyStatistic],
       )
     end
 
-    WebID = Base::Struct.new(
+    WebID = Base.new(
       item_hash: String,
       item_key: String,
     ) do
@@ -133,7 +132,7 @@ module MaimaiNet
         difficulty: Integer,
       }
 
-      InfoLite = Base::Struct.new(**info_base) do
+      InfoLite = Base.new(**info_base) do
         def to_info(level_text: '?')
           Info.new(
             web_id: WebID::DUMMY,
@@ -145,7 +144,7 @@ module MaimaiNet
         end
       end
 
-      Info = Base::Struct.new(
+      Info = Base.new(
         web_id: WebID,
         **info_base,
         level_text: String,
@@ -155,7 +154,7 @@ module MaimaiNet
         end
       end
 
-      Song = Base::Struct.new(
+      Song = Base.new(
         title: String,
         artist: String,
         genre: String,
@@ -163,18 +162,18 @@ module MaimaiNet
       )
     end
 
-    SongEntry = Base::Struct.new(
+    SongEntry = Base.new(
       web_id: WebID,
       title: String,
       genre: String,
     )
 
-    SongFavoriteInfo = Base::Struct.new(
+    SongFavoriteInfo = Base.new(
       song: SongEntry,
       flag: Boolean,
     )
 
-    PhotoUpload = Base::Struct.new(
+    PhotoUpload = Base.new(
       info: Chart::InfoLite,
       url: URI::Generic,
       location: String,
@@ -182,7 +181,7 @@ module MaimaiNet
     )
 
     module Result
-      Progress = Base::Struct.new(
+      Progress = Base.new(
         value: Integer,
         max: Integer,
       ) do
@@ -191,23 +190,23 @@ module MaimaiNet
         alias inspect to_s
       end
 
-      RivalInfo = Base::Struct.new(
+      RivalInfo = Base.new(
         player: PlayerData::Lite,
         score:  Float,
       )
 
-      PlayerInfo = Base::Struct.new(
+      PlayerInfo = Base.new(
         player_name: String,
         difficulty:  Integer,
       )
 
-      TourMember = Base::Struct.new(
+      TourMember = Base.new(
         icon: URI::Generic,
         grade: Integer,
         level: Integer,
       )
 
-      Judgment = Base::Struct.new(
+      Judgment = Base.new(
         just: Integer,
         perfect: Integer,
         great: Integer,
@@ -215,17 +214,17 @@ module MaimaiNet
         miss: Integer,
       )
 
-      Offset = Base::Struct.new(
+      Offset = Base.new(
         early: Integer,
         late: Integer,
       )
 
-      Challenge = Base::Struct.new(
+      Challenge = Base.new(
         type: Symbol,
         lives: Progress,
       )
 
-      ScoreLite = Base::Struct.new(
+      ScoreLite = Base.new(
         score: Float,
         deluxe_score: Progress,
         grade: Symbol,
@@ -233,7 +232,7 @@ module MaimaiNet
         position: Optional[Integer],
       )
 
-      Score = Base::Struct.new(
+      Score = Base.new(
         score: Float,
         deluxe_score: Progress,
         combo: Progress,
@@ -243,7 +242,7 @@ module MaimaiNet
         position: Optional[Integer],
       )
 
-      ReferenceWebID = Base::Struct.new(
+      ReferenceWebID = Base.new(
         order: Integer,
         time: Time,
       ) do
@@ -258,7 +257,7 @@ module MaimaiNet
         alias to_s to_str
       end
 
-      Track = Base::Struct.new(
+      Track = Base.new(
         info: Chart::Info,
         score: Either[Score, ScoreLite],
         order: Integer,
@@ -266,12 +265,12 @@ module MaimaiNet
         challenge: Optional[Challenge],
       )
 
-      TrackReference = Base::Struct.new(
+      TrackReference = Base.new(
         track: Track,
         ref_web_id: ReferenceWebID,
       )
 
-      Data = Base::Struct.new(
+      Data = Base.new(
         track: Track,
         breakdown: Generic[Hash, Symbol, Judgment],
         timing: Offset,
@@ -282,17 +281,17 @@ module MaimaiNet
     end
 
     module Record
-      History = Base::Struct.new(
+      History = Base.new(
         play_count: Integer,
         last_played: Time,
       )
 
-      ScoreOnly = Base::Struct.new(
+      ScoreOnly = Base.new(
         score: Float,
         grade: Symbol,
       )
 
-      Score = Base::Struct.new(
+      Score = Base.new(
         web_id: WebID,
         score: Float,
         deluxe_score: Result::Progress,
@@ -301,50 +300,50 @@ module MaimaiNet
         flags: Generic[Array, Symbol],
       )
 
-      ChartRecord = Base::Struct.new(
+      ChartRecord = Base.new(
         info: Chart::Info,
         record: Optional[Score],
         history: Optional[History],
       )
 
-      InfoCategory = Base::Struct.new(
+      InfoCategory = Base.new(
         info: Chart::Info,
         score: Optional[Result::ScoreLite],
       )
 
-      InfoBest = Base::Struct.new(
+      InfoBest = Base.new(
         info: Chart::Info,
         play_count: Integer,
       )
 
-      InfoRating = Base::Struct.new(
+      InfoRating = Base.new(
         info: Chart::Info,
         score: ScoreOnly,
       )
 
-      Data = Base::Struct.new(
+      Data = Base.new(
         info: Chart::Song,
         charts: Generic[Hash, Symbol, ChartRecord],
       )
     end
 
     module FinaleArchive
-      Decoration = Base::Struct.new(
+      Decoration = Base.new(
         icon: URI::Generic,
         player_frame: URI::Generic,
         nameplate: URI::Generic,
       )
-      Currency = Base::Struct.new(
+      Currency = Base.new(
         amount: Integer, piece: Integer, parts: Integer,
       )
-      ExtendedInfo = Base::Struct.new(
+      ExtendedInfo = Base.new(
         rating: Float, rating_highest: Float,
         region_count: Integer,
         currency: Currency,
         partner_level_total: Integer,
       )
 
-      DifficultyStatistic = Base::Struct.new(
+      DifficultyStatistic = Base.new(
         total_score: Integer,
         clears: SongCount,
         ranks: Generic[Hash, Symbol, SongCount],
@@ -353,7 +352,7 @@ module MaimaiNet
         multi_flags: Generic[Hash, Symbol, SongCount],
       )
 
-      Data = Base::Struct.new(
+      Data = Base.new(
         info:       PlayerCommon::Info,
         decoration: Decoration,
         extended:   ExtendedInfo,
