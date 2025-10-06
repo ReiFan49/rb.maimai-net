@@ -318,7 +318,7 @@ module MaimaiNet
       # @param opts   [Hash{Symbol => Object}]
       # @option response_page [Class<Page::Base>] response parser class
       # @option response      [#call]             response method, takes one argument, response body raw.
-      # @return [Model::Base::Struct] returns page data based from provided response_page field
+      # @return [Model::Base] returns page data based from provided response_page field
       # @return [void]
       def send_request(method, url, data, **opts)
         fail NotImplementedError, 'abstract method called' if Connection == method(__method__).owner
@@ -362,7 +362,7 @@ module MaimaiNet
       # @!api private
       # @param url  [URI] response url
       # @param body [String] response body
-      # @return [Model::Base::Struct, Array<Model::Base::Struct>] response page handled result
+      # @return [Model::Base, Array<Model::Base>] response page handled result
       # @return [nil] no response page defined to handle the response
       def process_response(url:, body:, request_options:)
         info = @client.class.region_info

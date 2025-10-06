@@ -98,21 +98,27 @@ RSpec.describe MaimaiNet::Page, :aggregate_failures do
 
   describe 'song list pages' do
     it 'genre grouping', pending: !defined?(MaimaiNet::Model::Record::InfoCategory) do
-      expect(
-        load_page(MaimaiNet::Page::MusicList, 'pages/record_musicGenre_search', &method(:flatten_hash_values))
-      ).to all(be_a(MaimaiNet::Model::Record::InfoCategory))
+      data = load_page(MaimaiNet::Page::MusicList, 'pages/record_musicGenre_search', &method(:flatten_hash_values))
+      expect(data).to_not be_empty
+      expect(data).to all(be_a(MaimaiNet::Model::Record::InfoCategory))
     end
 
     it 'custom sort grouping', pending: !defined?(MaimaiNet::Model::Record::InfoCategory) do
-      expect(
-        load_page(MaimaiNet::Page::MusicList, 'pages/record_musicSort_search', &method(:flatten_hash_values))
-      ).to all(be_a(MaimaiNet::Model::Record::InfoCategory))
+      data = load_page(MaimaiNet::Page::MusicList, 'pages/record_musicSort_search', &method(:flatten_hash_values))
+      expect(data).to_not be_empty
+      expect(data).to all(be_a(MaimaiNet::Model::Record::InfoCategory))
     end
 
     it 'difficulty best grouping', pending: !defined?(MaimaiNet::Model::Record::InfoBest) do
-      expect(
-        load_page(MaimaiNet::Page::MusicList, 'pages/record_musicMybest_search')
-      ).to all(be_a(MaimaiNet::Model::Record::InfoBest))
+      data = load_page(MaimaiNet::Page::MusicList, 'pages/record_musicMybest_search')
+      expect(data).to_not be_empty
+      expect(data).to all(be_a(MaimaiNet::Model::Record::InfoBest))
+    end
+
+    it 'utage listing', pending: !defined?(MaimaiNet::Model::Record::InfoCategory) do
+      data = load_page(MaimaiNet::Page::MusicList, 'pages/record_musicX_search_utage', &method(:flatten_hash_values))
+      expect(data).to_not be_empty
+      expect(data).to all(be_a(MaimaiNet::Model::Record::InfoCategory))
     end
   end
 

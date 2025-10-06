@@ -362,24 +362,51 @@ module MaimaiNet
         if track_group_blocks.empty? then
           track_segmented_blocks[current_group] = @root.css('div:has(> form[action$="/musicDetail/"] input[name=idx])')
         else
-          @root.css('.see_through_block ~ div').each do |elm|
-            if elm.classes.include? 'screw_block' then
-              current_group = elm.content
-              next
+          %w(.see_through_block .scroll_point).each do |anchor_class|
+            anchor_elm = @root.at_css(anchor_class)
+            next if anchor_elm.nil?
+
+            anchor_elm.css('~ div').each do |elm|
+              if elm.classes.include? 'screw_block' then
+                current_group = elm.content
+                next
+              end
+
+              track_segmented_blocks[current_group] ||= Nokogiri::XML::NodeSet.new(@document)
+              track_segmented_blocks[current_group] << elm
             end
 
-            track_segmented_blocks[current_group] ||= Nokogiri::XML::NodeSet.new(@document)
-            track_segmented_blocks[current_group] << elm
+            break
           end
         end
 
         result = track_segmented_blocks.transform_values do |elm_group|
           elm_group.map do |elm|
+            chart_info = {}
+            chart_info[:flags] = 0
+
+            chart_info[:type] = elm.at_css('.music_kind_icon').yield_self do |_elm|
+              next if _elm.nil?
+
+              Pathname(URI(src(_elm)).path).sub_ext('').sub(/.+_/, '').basename.to_s
+            end.yield_self do |type|
+              type || -'unknown'
+            end
+
+            nil.tap do
+              next if elm.at_css('.music_kind_icon_utage').nil?
+
+              chart_info[:variant] = strip(elm.at_css('.music_kind_icon_utage_text:nth-of-type(1)'))
+              chart_info[:flags]  |= elm.at_css('.music_kind_icon_utage:has(img[src*=music_utage_buddy])').nil? ? 0 : 1
+            end
+
             chart_info = Model::Chart::Info.new(
               web_id: Model::WebID.parse(elm.at_css('input[name=idx][type=hidden]')['value']),
               title: elm.at_css('.music_name_block').content,
-              type: Pathname(URI(src(elm.at_css('.music_kind_icon'))).path).sub_ext('').sub(/.+_/, '').basename.to_s,
+              type: chart_info.fetch(:type, -'unknown'),
               difficulty: Difficulty(Pathname(URI(src(elm.at_css('form > img:nth-of-type(1)'))).path).sub_ext('').sub(/.+_/, '').basename.to_s).id,
+              variant: chart_info.fetch(:variant, nil),
+              flags: chart_info[:flags],
               level_text: elm.at_css('.music_lv_block').content,
             )
 
