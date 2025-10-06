@@ -196,6 +196,11 @@ module MaimaiNet
         score:  Float,
       )
 
+      PlayerInfo = Base::Struct.new(
+        player_name: String,
+        difficulty:  Integer,
+      )
+
       TourMember = Base::Struct.new(
         icon: URI::Generic,
         grade: Integer,
@@ -272,6 +277,7 @@ module MaimaiNet
         timing: Offset,
         members: Generic[Array, TourMember],
         rival: Optional[RivalInfo],
+        players: Generic[Array, PlayerInfo],
       )
     end
 

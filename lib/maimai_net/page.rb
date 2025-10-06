@@ -265,6 +265,7 @@ module MaimaiNet
 
         start_anchor = @root.at_css('img.title')
         @otomodachi_block = start_anchor.at_css('~ div#vsUser > :first-child')
+        @multiplayer_block = start_anchor.at_css('~ div#matching')
         @score_block = start_anchor.at_css('~ div:not(#vsUser):nth-of-type(1)')
         @breakdown_block = start_anchor.at_css('~ div:not(#vsUser):nth-of-type(2)')
       end
@@ -310,6 +311,16 @@ module MaimaiNet
           )
         end
 
+        result_players = @multiplayer_block&.css(':has(img[src*="/diff"])').to_a.map do |elm|
+          difficulty = Difficulty(Pathname(src(elm.at_css('> img:nth-of-type(1)'))).sub_ext('').sub(/.+_/, '').basename)
+          name = strip(elm.at_css('> div.basic_block:nth-of-type(1)'))
+
+          Model::Result::PlayerInfo.new(
+            player_name: name,
+            difficulty:  difficulty.id,
+          )
+        end
+
         chart_web_id = Model::WebID.parse(@root.at_css('form[action$="/record/musicDetail/"] input[name=idx]')['value'])
 
         Model::Result::Data.new(
@@ -323,6 +334,7 @@ module MaimaiNet
           timing: Model::Result::Offset.new(**Model::Result::Offset.members.zip(result_offset_breakdown).to_h),
           members: result_tour_members,
           rival: result_otomodachi_rival,
+          players: result_players,
         )
       end
     end
