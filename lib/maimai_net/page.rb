@@ -362,14 +362,21 @@ module MaimaiNet
         if track_group_blocks.empty? then
           track_segmented_blocks[current_group] = @root.css('div:has(> form[action$="/musicDetail/"] input[name=idx])')
         else
-          @root.css('.see_through_block ~ div').each do |elm|
-            if elm.classes.include? 'screw_block' then
-              current_group = elm.content
-              next
+          %w(.see_through_block .scroll_point).each do |anchor_class|
+            anchor_elm = @root.at_css(anchor_class)
+            next if anchor_elm.nil?
+
+            anchor_elm.css('~ div').each do |elm|
+              if elm.classes.include? 'screw_block' then
+                current_group = elm.content
+                next
+              end
+
+              track_segmented_blocks[current_group] ||= Nokogiri::XML::NodeSet.new(@document)
+              track_segmented_blocks[current_group] << elm
             end
 
-            track_segmented_blocks[current_group] ||= Nokogiri::XML::NodeSet.new(@document)
-            track_segmented_blocks[current_group] << elm
+            break
           end
         end
 
