@@ -69,3 +69,5 @@ jobs:
         GEM_HOST_API_KEY: "${{secrets.RUBYGEMS_AUTH_TOKEN}}"
     - name: Publish to RubyGems (Trusted)
       uses: rubygems/release-gem@v1
+      with:
+        await-release: 'false'
