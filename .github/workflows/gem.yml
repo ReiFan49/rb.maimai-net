@@ -26,6 +26,24 @@ jobs:
       with:
         bundler-cache: true
         ruby-version: ${{ env.RUBY_VERSION }}
+    - name: Fix potential bundler error
+      run: |
+        bundler add faraday-net_http --version '< 3.1'
+        ruby scripts/bundle_pinback_lockfile.rb
+
+        cat << EOF >> Rakefile
+        # This is from tagged release. No need for extra commit and pushing.
+        Rake::Task['release'].tap do |task|
+          task.prerequisites.reject! do |name| %w(release:guard_clean release:source_control_push).include?(name) end
+        end
+        EOF
+
+        echo 'Gemfile contents:'
+        cat Gemfile
+
+        echo 'Gemfile.lock contents:'
+        cat Gemfile.lock
+
     # Publish
     - name: Publish to GPR
       run: |
@@ -51,3 +69,5 @@ jobs:
         GEM_HOST_API_KEY: "${{secrets.RUBYGEMS_AUTH_TOKEN}}"
     - name: Publish to RubyGems (Trusted)
       uses: rubygems/release-gem@v1
+      with:
+        await-release: 'false'

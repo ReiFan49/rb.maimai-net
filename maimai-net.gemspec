@@ -23,10 +23,18 @@ Gem::Specification.new do |spec|
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
   begin
     spec.files       = Dir.chdir(File.expand_path('..', __FILE__)) do
-      `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
+      `git ls-files -z -- lib LICENSE README.md`.split(0.chr).select do |fn|
+        fn.start_with?('lib/') ? fn.end_with?('.rb') : true
+      end
     end
   rescue Errno::ENOENT
-    spec.files       = Dir.glob('lib/**/*.rb', base: File.expand_path('..', __FILE__))
+    spec.files       = Dir.glob([
+        'lib/**/*.rb',
+        'LICENSE',
+        'README.md',
+      ],
+      base: File.expand_path('..', __FILE__),
+    )
   end
   spec.bindir        = "exe"
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
