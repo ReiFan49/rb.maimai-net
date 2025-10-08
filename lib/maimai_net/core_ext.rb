@@ -13,5 +13,19 @@ module MaimaiNet
         private k
       end
     end
+
+    # adds JSON conversion support through `#to_h` conversion.
+    module JSONSupport
+      def as_json(options = nil)
+        to_h.transform_values do |val|
+          val.respond_to?(:as_json) ?
+            val.as_json(options) : val
+        end
+      end
+
+      def to_json(options = nil)
+        as_json.to_json(options)
+      end
+    end
   end
 end

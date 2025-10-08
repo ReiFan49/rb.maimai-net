@@ -26,16 +26,7 @@ module MaimaiNet
         super(*args)
       end
 
-      def as_json(options = nil)
-        to_h.transform_values do |val|
-          val.respond_to?(:as_json) ?
-            val.as_json(options) : val
-        end
-      end
-
-      def to_json(options = nil)
-        as_json.to_json(options)
-      end
+      include CoreExt::JSONSupport
 
       class << self
         # creates a strong-typed struct data
