@@ -31,6 +31,13 @@ jobs:
         bundler add faraday-net_http --version '< 3.1'
         ruby scripts/bundle_pinback_lockfile.rb
 
+        cat << EOF >> Rakefile
+        # This is from tagged release. No need for extra commit and pushing.
+        Rake::Task['release'].tap do |task|
+          task.prerequisites.reject! do |name| %w(release:guard_clean release:source_control_push).include?(name) end
+        end
+        EOF
+
         echo 'Gemfile contents:'
         cat Gemfile
 
