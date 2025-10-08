@@ -299,7 +299,7 @@ module MaimaiNet
 
         case error_code
         when 100101
-          fail Error::LoginError, error_code
+          on_login_error
         when 200002
           fail Error::SessionRefreshError, error_code
         when 200004
