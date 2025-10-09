@@ -21,10 +21,7 @@ module MaimaiNet
           result_block = info_block.at_css('.basic_block ~ div:nth-of-type(1)')
 
           track_order = get_fullint(strip(header_block.at_css('div.sub_title > span:nth-of-type(1)')))
-          play_time = Time.strptime(
-            strip(header_block.at_css('div.sub_title > span:nth-of-type(2)')) + ' +09:00',
-            '%Y/%m/%d %H:%M %z',
-          )
+          play_time = jst_from(header_block.at_css('div.sub_title > span:nth-of-type(2)'))
           song_name = strip(chart_header_block.children.last)
           chart_level = strip(chart_header_block.at_css('div:nth-of-type(1)'))
           song_jacket = src(result_block.at_css('img.music_img'))

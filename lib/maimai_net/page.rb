@@ -146,11 +146,7 @@ module MaimaiNet
             ),
             url: URI(src(elm.at_css('> .block_info:nth-of-type(1) ~ img:nth-of-type(2)'))),
             location: strip(elm.at_css('> div:not(.clearfix):nth-of-type(4)')),
-            time: Time.strptime(
-              strip(elm.at_css('> div:not(.clearfix):nth-of-type(1)')) + ' +09:00',
-              '%Y/%m/%d %H:%M %z',
-              Time.now.localtime(32400),
-            ),
+            time: jst_from(elm.at_css('> div:not(.clearfix):nth-of-type(1)')),
           )
         end
       end
@@ -216,7 +212,7 @@ module MaimaiNet
             end
           end
           last_played_date, total_play_count = chart_record_block.css('table tr td:nth-of-type(2)').zip([
-            ->(content){Time.strptime(content + ' +09:00', '%Y/%m/%d %H:%M %z')},
+            method(:jst),
             method(:int),
           ]).map do |elm, block|
             block.call(strip(elm))

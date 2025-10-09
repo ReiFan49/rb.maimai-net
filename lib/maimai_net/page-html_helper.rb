@@ -64,6 +64,12 @@ module MaimaiNet
       # and de-group all of the string into array of integers
       # @return [Array<Integer>]
       def scan_int(content); content.scan(GROUPED_INTEGER).map(&method(:int)); end
+      # parse time string as JST
+      # @return [Time]
+      def jst(time); ::Time.strptime(time + ' +09:00', '%Y/%m/%d %H:%M %z'); end
+      # parse time string as JST from stripped text content
+      # @return [Time]
+      def jst_from(node); jst(strip(node)); end
 
       inspect_permit_variable_exclude :_page
       inspect_permit_expression do |value| false end
