@@ -135,8 +135,8 @@ module MaimaiNet
         images.map do |elm|
           elm = elm.at_css('> div')
 
-          chart_type = Pathname(src(elm.at_css('> .music_kind_icon'))).sub_ext('').basename
-          difficulty = Difficulty(Pathname(src(elm.at_css('> img:nth-of-type(2)'))).sub_ext('').sub('diff_', '').basename)
+          chart_type = get_chart_type_from(elm.at_css('> .music_kind_icon'))
+          difficulty = get_chart_difficulty_from(elm.at_css('> .block_info:nth-of-type(1) ~ img:nth-of-type(1)'))
 
           Model::PhotoUpload.new(
             info: Model::Chart::InfoLite.new(
@@ -167,7 +167,7 @@ module MaimaiNet
         song_info_elm = @summary_block.at_css('> div:nth-of-type(1)')
 
         song_jacket = URI(src(@summary_block.at_css('> img:nth-of-type(1)')))
-        set_type = Pathname(src(song_info_elm.at_css('> div:nth-of-type(1) > img'))).sub_ext('').sub(/.+_/, '').basename.to_s
+        set_type = get_chart_type_from(song_info_elm.at_css('> div:nth-of-type(1) > img'))
         song_genre = strip(song_info_elm.at_css('> div:nth-of-type(1)'))
         song_name = strip(song_info_elm.at_css('> div:nth-of-type(2)'))
         song_artist = strip(song_info_elm.at_css('> div:nth-of-type(3)'))
@@ -202,8 +202,8 @@ module MaimaiNet
         end
 
         chart_score_blocks.each do |chart_score_block|
-          difficulty = Difficulty(Pathname(src(chart_score_block.at_css('> img:nth-of-type(1)'))).sub_ext('').sub(/.+_/, '').basename)
-          chart_type = Pathname(src(chart_score_block.at_css('> img:nth-of-type(2)')))&.sub_ext('')&.sub(/.+_/, '')&.basename&.to_s or set_type
+          difficulty = get_chart_difficulty_from(chart_score_block.at_css('> img:nth-of-type(1)'))
+          chart_type = get_chart_type_from(chart_score_block.at_css('> img:nth-of-type(2)')) || set_type
           clearfixes = chart_score_block.css('.clearfix')
 
           chart_record_block = clearfixes[0].at_css('~ div:nth-of-type(2)')
@@ -312,7 +312,7 @@ module MaimaiNet
         end
 
         result_players = @multiplayer_block&.css(':has(img[src*="/diff"])').to_a.map do |elm|
-          difficulty = Difficulty(Pathname(src(elm.at_css('> img:nth-of-type(1)'))).sub_ext('').sub(/.+_/, '').basename)
+          difficulty = get_chart_difficulty_from(elm.at_css('> img:nth-of-type(1)'))
           name = strip(elm.at_css('> div.basic_block:nth-of-type(1)'))
 
           Model::Result::PlayerInfo.new(
@@ -385,13 +385,7 @@ module MaimaiNet
             chart_info = {}
             chart_info[:flags] = 0
 
-            chart_info[:type] = elm.at_css('.music_kind_icon').yield_self do |_elm|
-              next if _elm.nil?
-
-              Pathname(URI(src(_elm)).path).sub_ext('').sub(/.+_/, '').basename.to_s
-            end.yield_self do |type|
-              type || -'unknown'
-            end
+            chart_info[:type] = get_chart_type_from(elm.at_css('.music_kind_icon'))
 
             nil.tap do
               next if elm.at_css('.music_kind_icon_utage').nil?
@@ -404,7 +398,7 @@ module MaimaiNet
               web_id: Model::WebID.parse(elm.at_css('input[name=idx][type=hidden]')['value']),
               title: elm.at_css('.music_name_block').content,
               type: chart_info.fetch(:type, -'unknown'),
-              difficulty: Difficulty(Pathname(URI(src(elm.at_css('form > img:nth-of-type(1)'))).path).sub_ext('').sub(/.+_/, '').basename.to_s).id,
+              difficulty: get_chart_difficulty_from(elm.at_css('form > img:nth-of-type(1)')).id,
               variant: chart_info.fetch(:variant, nil),
               flags: chart_info[:flags],
               level_text: elm.at_css('.music_lv_block').content,

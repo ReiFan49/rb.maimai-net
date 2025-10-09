@@ -73,6 +73,20 @@ module MaimaiNet
       private :new
     end
 
+    module TrackHelper
+      def get_chart_difficulty_from(elm)
+        Difficulty(::Kernel.Pathname(src(elm)).sub_ext('').sub(/.+_/, '').basename)
+      end
+
+      def get_chart_type_from(elm)
+        return -'unknown' if elm.nil?
+
+        ::Kernel.Pathname(::Kernel.URI(src(elm)).path).sub_ext('').sub(/.+_/, '').basename.to_s
+      end
+    end
+
+    HelperBlock.include TrackHelper
+
     # adds capability to inject methods using hidden helper block
     module HelperSupport
       # defines the method to be injected with hidden helper block.

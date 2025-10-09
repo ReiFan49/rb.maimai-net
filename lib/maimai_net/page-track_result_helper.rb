@@ -10,7 +10,7 @@ module MaimaiNet
       )
         HelperBlock.send(:new, nil).instance_exec do
           header_block = elm.at_css('.playlog_top_container')
-          difficulty = Difficulty(::Kernel.Pathname(src(header_block.at_css('img.playlog_diff'))).sub_ext('').sub(/.+_/, '').basename)
+          difficulty = get_chart_difficulty_from(header_block.at_css('img.playlog_diff'))
           utage_variant = header_block.at_css('.playlog_music_kind_icon_utage').yield_self do |elm|
             next if elm.nil?
 
@@ -32,11 +32,7 @@ module MaimaiNet
           song_name = strip(chart_header_block.children.last)
           chart_level = strip(chart_header_block.at_css('div:nth-of-type(1)'))
           song_jacket = src(result_block.at_css('img.music_img'))
-          chart_type = result_block.at_css('img.playlog_music_kind_icon').yield_self do |elm|
-            next if elm.nil?
-
-            ::Kernel.Pathname(src(elm))&.sub_ext('')&.sub(/.+_/, '')&.basename&.to_s
-          end
+          chart_type  = get_chart_type_from(result_block.at_css('img.playlog_music_kind_icon'))
 
           result_score = strip(result_block.at_css('.playlog_achievement_txt')).to_f
           result_deluxe_scores = scan_int(strip(result_block.at_css('.playlog_result_innerblock .playlog_score_block div:nth-of-type(1)')))
