@@ -285,6 +285,15 @@ module MaimaiNet
         fail Error::LoginError, 100101
       end
 
+      # hook upon receiving login expired page,
+      # triggering this hook causes client cookies wiped out.
+      # @return [void]
+      # @raise [Error::SessionExpiredError]
+      def on_login_expired_error
+        @client.cookies.clear
+        fail Error::SessionExpiredError, error_code
+      end
+
       # hook upon receiving generic error page
       # @return [void]
       # @raise [Error::LoginError] error code describes an invalid login
@@ -299,11 +308,11 @@ module MaimaiNet
 
         case error_code
         when 100101
-          fail Error::LoginError, error_code
+          on_login_error
         when 200002
           fail Error::SessionRefreshError, error_code
         when 200004
-          fail Error::SessionExpiredError, error_code
+          on_login_expired_error
         else
           fail Error::GeneralError, error_code
         end

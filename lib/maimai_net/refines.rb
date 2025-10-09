@@ -1,5 +1,9 @@
 module MaimaiNet
-  # includes AutoConstants into invokable class
+  # injects {CoreExt::AutoConstantInclusion} into {Kernel} and {BasicObject}.
+  # @note A bug noticed from v0.0.1 where refining Kernel only
+  #   is not reliable due to prepending on Kernel causes
+  #   all refines on Kernel are invalidated. A band-aid solution
+  #   for this is also injecting BasicObject with the same refine.
   module IncludeAutoConstant
     refine Kernel do
       include CoreExt::AutoConstantInclusion
@@ -9,7 +13,8 @@ module MaimaiNet
     end
   end
 
-  # converts any object into a single-element array unless it's an array
+  # grants any object an ability to convert itself into a single-element array.
+  # unless it's an array already.
   module ObjectAsArray
     refine Object do
       def as_array
