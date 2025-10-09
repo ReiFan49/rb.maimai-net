@@ -204,7 +204,7 @@ module MaimaiNet
 
           chart_record_block = clearfixes[0].at_css('~ div:nth-of-type(2)')
           record_grade, record_flag, record_sync_flag = chart_record_block.css('> img').map do |elm|
-            value = Pathname(URI(src(elm)).path).sub_ext('')&.sub(/.+_/, '')&.basename.to_s
+            value = subpath_from(elm)
             case value
             when 'back'; nil
             when *MaimaiNet::AchievementFlag::RECORD.values; MaimaiNet::AchievementFlag.new(record_key: value)
@@ -223,7 +223,7 @@ module MaimaiNet
           chart_deluxe_scores = scan_int(strip(chart_best_block.at_css('.music_score_block:nth-of-type(2)')))
           chart_deluxe_grade_elm = chart_best_block.at_css('.music_score_block:nth-of-type(2) img:nth-child(2)')
           record_deluxe_grade = chart_deluxe_grade_elm ?
-            Pathname(src(chart_deluxe_grade_elm))&.sub_ext('')&.sub(/.+_/, '')&.basename&.to_s.to_i :
+            subpath_from(chart_deluxe_grade_elm).to_i :
             0
 
           difficulty_data[difficulty.abbrev].tap do |d|
@@ -268,7 +268,7 @@ module MaimaiNet
 
       helper_method :data do
         result_breakdown = @breakdown_block.css('table.playlog_notes_detail tr:not(:first-child)').map do |row|
-          key = Pathname(URI(src(row.at_css('th img'))).path).sub_ext('').basename.to_s.to_sym
+          key = subpath_from(row.at_css('th img')).to_sym
           values = Model::Result::Judgment.new(**Model::Result::Judgment.members.zip(
             row.css('td').map(&method(:strip)).map(&method(:get_int))
           ).to_h)
@@ -411,7 +411,7 @@ module MaimaiNet
                 )
               else
                 # ratingTargetMusic page
-                best_grade = Pathname(URI(src(elm.at_css('.music_score_block:nth-of-type(1) > div > img'))).path).sub_ext('').sub(/.+_/, '').basename.to_s.to_sym
+                best_grade = subpath_from(elm.at_css('.music_score_block:nth-of-type(1) > div > img')).to_sym
                 score_info = Model::Result::ScoreOnly.new(
                   score: strip(elm.at_css('.music_score_block:nth-of-type(1)')).to_f,
                   grade: best_grade,
@@ -427,7 +427,7 @@ module MaimaiNet
               if !elm.at_css('.music_score_block').nil? then
                 best_deluxe_score = scan_int(strip(elm.at_css('.music_score_block:nth-of-type(2)')))
                 flairs = elm.css('.music_score_block ~ img:has(~ .clearfix)').map do |img|
-                  Pathname(URI(src(img)).path).sub_ext('').sub(/.+_/, '').basename.to_s.to_sym.yield_self do |value|
+                  subpath_from(img).to_sym.yield_self do |value|
                     value == :back ? nil : value
                   end
                 end

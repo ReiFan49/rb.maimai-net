@@ -70,6 +70,10 @@ module MaimaiNet
       # parse time string as JST from stripped text content
       # @return [Time]
       def jst_from(node); jst(strip(node)); end
+      # @return [String] basename part of the path without any prefixes
+      def subpath(uri); ::Kernel.Pathname(::Kernel.URI(uri).path)&.sub_ext('')&.sub(/.+_/, '')&.basename.to_s; end
+      # (see #subpath)
+      def subpath_from(node); node ? subpath(src(node)) : -'' end
 
       inspect_permit_variable_exclude :_page
       inspect_permit_expression do |value| false end
@@ -82,7 +86,7 @@ module MaimaiNet
     module TrackHelper
       # @return [Constants::Difficulty] difficulty value of given html element
       def get_chart_difficulty_from(node)
-        Difficulty(::Kernel.Pathname(src(node)).sub_ext('').sub(/.+_/, '').basename)
+        Difficulty(subpath_from(node))
       end
 
       # @return [String] chart type of given html element
@@ -90,7 +94,7 @@ module MaimaiNet
       def get_chart_type_from(node)
         return -'unknown' if node.nil?
 
-        ::Kernel.Pathname(::Kernel.URI(src(node)).path).sub_ext('').sub(/.+_/, '').basename.to_s
+        subpath_from(node)
       end
 
       # @return [String] chart variant of given html element
