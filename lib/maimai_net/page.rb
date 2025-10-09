@@ -144,7 +144,7 @@ module MaimaiNet
               type: chart_type.to_s,
               difficulty: difficulty.id,
             ),
-            url: URI(src(elm.at_css('> img:nth-of-type(3)'))),
+            url: URI(src(elm.at_css('> .block_info:nth-of-type(1) ~ img:nth-of-type(2)'))),
             location: strip(elm.at_css('> div:not(.clearfix):nth-of-type(4)')),
             time: Time.strptime(
               strip(elm.at_css('> div:not(.clearfix):nth-of-type(1)')) + ' +09:00',
