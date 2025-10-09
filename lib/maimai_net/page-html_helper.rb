@@ -74,14 +74,27 @@ module MaimaiNet
     end
 
     module TrackHelper
-      def get_chart_difficulty_from(elm)
-        Difficulty(::Kernel.Pathname(src(elm)).sub_ext('').sub(/.+_/, '').basename)
+      # @return [Constants::Difficulty] difficulty value of given html element
+      def get_chart_difficulty_from(node)
+        Difficulty(::Kernel.Pathname(src(node)).sub_ext('').sub(/.+_/, '').basename)
       end
 
-      def get_chart_type_from(elm)
-        return -'unknown' if elm.nil?
+      # @return [String] chart type of given html element
+      # @return ["unknown"] if the chart element is not defined
+      def get_chart_type_from(node)
+        return -'unknown' if node.nil?
 
-        ::Kernel.Pathname(::Kernel.URI(src(elm)).path).sub_ext('').sub(/.+_/, '').basename.to_s
+        ::Kernel.Pathname(::Kernel.URI(src(node)).path).sub_ext('').sub(/.+_/, '').basename.to_s
+      end
+
+      # @return [String] chart variant of given html element
+      # @return [nil]    if the chart element is not utage
+      # @see HelperBlock#strip
+      # @note this is a semantic clarity for strip function.
+      def get_chart_variant_from(node)
+        return if node.nil?
+
+        strip(node)
       end
     end
 

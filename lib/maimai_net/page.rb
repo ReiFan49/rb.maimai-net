@@ -386,11 +386,11 @@ module MaimaiNet
             chart_info[:flags] = 0
 
             chart_info[:type] = get_chart_type_from(elm.at_css('.music_kind_icon'))
+            chart_info[:variant] = get_chart_variant_from(elm.at_css('.music_kind_icon_utage_text:nth-of-type(1)'))
 
             nil.tap do
               next if elm.at_css('.music_kind_icon_utage').nil?
 
-              chart_info[:variant] = strip(elm.at_css('.music_kind_icon_utage_text:nth-of-type(1)'))
               chart_info[:flags]  |= elm.at_css('.music_kind_icon_utage:has(img[src*=music_utage_buddy])').nil? ? 0 : 1
             end
 

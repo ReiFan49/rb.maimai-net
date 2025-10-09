@@ -11,11 +11,7 @@ module MaimaiNet
         HelperBlock.send(:new, nil).instance_exec do
           header_block = elm.at_css('.playlog_top_container')
           difficulty = get_chart_difficulty_from(header_block.at_css('img.playlog_diff'))
-          utage_variant = header_block.at_css('.playlog_music_kind_icon_utage').yield_self do |elm|
-            next if elm.nil?
-
-            strip(elm)
-          end
+          utage_variant = get_chart_variant_from(header_block.at_css('.playlog_music_kind_icon_utage'))
 
           dx_container_classes = MaimaiNet::Difficulty::DELUXE.select do |k, v| v.positive? end
             .keys.map do |k| ".playlog_#{k}_container" end
