@@ -1011,7 +1011,7 @@ module MaimaiNet
 
         @conn = Faraday.new(url: info[:base_host]) do |builder|
           builder.request  :url_encoded
-          builder.response :follow_redirects
+          builder.response :follow_redirects, limit: 5
           builder.use      :cookie_jar, jar: client.cookies
         end
       end
