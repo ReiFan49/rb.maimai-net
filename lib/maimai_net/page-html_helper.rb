@@ -74,6 +74,8 @@ module MaimaiNet
       def subpath(uri); ::Kernel.Pathname(::Kernel.URI(uri).path)&.sub_ext('')&.sub(/.+_/, '')&.basename.to_s; end
       # (see #subpath)
       def subpath_from(node); node ? subpath(src(node)) : -'' end
+      # @return [String] text contained directly under the node
+      def text(node); node.children.select(&:text?).map(&:content).inject('', :concat).strip end
 
       inspect_permit_variable_exclude :_page
       inspect_permit_expression do |value| false end
@@ -89,6 +91,11 @@ module MaimaiNet
         Difficulty(subpath_from(node))
       end
 
+      # @return [String] normalized difficulty text
+      def get_chart_level_text_from(node)
+        strip(node).sub(/\?$/, '')
+      end
+
       # @return [String] chart type of given html element
       # @return ["unknown"] if the chart element is not defined
       def get_chart_type_from(node)
@@ -102,9 +109,14 @@ module MaimaiNet
       # @see HelperBlock#strip
       # @note this is a semantic clarity for strip function.
       def get_chart_variant_from(node)
-        return if node.nil?
+        node&.at_css('img[src*="music_utage.png"]').nil? ?
+          nil : strip(node)
+      end
 
-        strip(node)
+      # @return [0] for non buddy chart
+      # @return [1] for buddy chart
+      def get_chart_buddy_flag_from(node)
+        node&.at_css('img[src*="music_utage_buddy.png"]').nil? ? 0 : 1
       end
     end
 
