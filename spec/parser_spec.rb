@@ -1,6 +1,28 @@
 # Parser Spec is an optional test with provided pages from the developer itself.
 # Actual files will not be provided publicly.
 
+RSpec::Matchers.define :be_a_valid_chart_info do
+  match do |object|
+    is_singles = true
+    check = ->(object){ (object.difficulty == 10) == !object.variant.nil? }
+
+    case object
+    when MaimaiNet::Model::PhotoUpload
+      object = object.info
+    when MaimaiNet::Model::Record::Data
+      next object.charts.values.all? do |record| check.call(record.info) end
+    when MaimaiNet::Model::Result::TrackReference,
+         MaimaiNet::Model::Result::Data
+      object = object.track.info
+    when MaimaiNet::Model::Record::InfoBest,
+         MaimaiNet::Model::Record::InfoCategory
+      object = object.info
+    end
+
+    check.call(object)
+  end
+end
+
 RSpec.describe MaimaiNet::Page, :aggregate_failures do
   def test_files(*files)
     fail ArgumentError, 'expected list of filenames, given empty' if files.empty?

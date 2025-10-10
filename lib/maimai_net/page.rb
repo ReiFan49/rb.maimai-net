@@ -164,7 +164,7 @@ module MaimaiNet
 
         song_jacket = URI(src(@summary_block.at_css('> img:nth-of-type(1)')))
         set_type = get_chart_type_from(song_info_elm.at_css('> div:nth-of-type(1) > img'))
-        song_genre = strip(song_info_elm.at_css('> div:nth-of-type(1)'))
+        song_genre = text(song_info_elm.at_css('> div:nth-of-type(1)'))
         song_name = strip(song_info_elm.at_css('> div:nth-of-type(2)'))
         song_artist = strip(song_info_elm.at_css('> div:nth-of-type(3)'))
 
