@@ -25,6 +25,12 @@ module MaimaiNet
       versions:   :version,
     }.freeze
 
+    module ErrorCodes
+      LOGIN_ERROR     = 100_101
+      SESSION_REFRESH = 200_002
+      SESSION_INVALID = 200_004
+    end
+
     class Base
       include ModuleExt
 
@@ -282,7 +288,16 @@ module MaimaiNet
       # @return [void]
       # @raise [Error::LoginError]
       def on_login_error
-        fail Error::LoginError, 100101
+        fail Error::LoginError, ErrorCodes::LOGIN_ERROR
+      end
+
+      # hook upon receiving login expired page,
+      # triggering this hook causes client cookies wiped out.
+      # @return [void]
+      # @raise [Error::SessionExpiredError]
+      def on_login_expired_error
+        @client.cookies.clear
+        fail Error::SessionExpiredError, ErrorCodes::SESSION_INVALID
       end
 
       # hook upon receiving generic error page
@@ -298,12 +313,12 @@ module MaimaiNet
         error_code = error_note.match(/\d+/).to_s.to_i
 
         case error_code
-        when 100101
-          fail Error::LoginError, error_code
-        when 200002
+        when ErrorCodes::LOGIN_ERROR
+          on_login_error
+        when ErrorCodes::SESSION_REFRESH
           fail Error::SessionRefreshError, error_code
-        when 200004
-          fail Error::SessionExpiredError, error_code
+        when ErrorCodes::SESSION_INVALID
+          on_login_expired_error
         else
           fail Error::GeneralError, error_code
         end

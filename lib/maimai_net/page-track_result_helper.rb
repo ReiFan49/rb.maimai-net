@@ -10,12 +10,8 @@ module MaimaiNet
       )
         HelperBlock.send(:new, nil).instance_exec do
           header_block = elm.at_css('.playlog_top_container')
-          difficulty = Difficulty(::Kernel.Pathname(src(header_block.at_css('img.playlog_diff'))).sub_ext('').sub(/.+_/, '').basename)
-          utage_variant = header_block.at_css('.playlog_music_kind_icon_utage').yield_self do |elm|
-            next if elm.nil?
-
-            strip(elm)
-          end
+          difficulty = get_chart_difficulty_from(header_block.at_css('img.playlog_diff'))
+          utage_variant = get_chart_variant_from(header_block.at_css('.playlog_music_kind_icon_utage'))
 
           dx_container_classes = MaimaiNet::Difficulty::DELUXE.select do |k, v| v.positive? end
             .keys.map do |k| ".playlog_#{k}_container" end
@@ -25,36 +21,29 @@ module MaimaiNet
           result_block = info_block.at_css('.basic_block ~ div:nth-of-type(1)')
 
           track_order = get_fullint(strip(header_block.at_css('div.sub_title > span:nth-of-type(1)')))
-          play_time = Time.strptime(
-            strip(header_block.at_css('div.sub_title > span:nth-of-type(2)')) + ' +09:00',
-            '%Y/%m/%d %H:%M %z',
-          )
+          play_time = jst_from(header_block.at_css('div.sub_title > span:nth-of-type(2)'))
           song_name = strip(chart_header_block.children.last)
           chart_level = strip(chart_header_block.at_css('div:nth-of-type(1)'))
           song_jacket = src(result_block.at_css('img.music_img'))
-          chart_type = result_block.at_css('img.playlog_music_kind_icon').yield_self do |elm|
-            next if elm.nil?
-
-            ::Kernel.Pathname(src(elm))&.sub_ext('')&.sub(/.+_/, '')&.basename&.to_s
-          end
+          chart_type  = get_chart_type_from(result_block.at_css('img.playlog_music_kind_icon'))
 
           result_score = strip(result_block.at_css('.playlog_achievement_txt')).to_f
           result_deluxe_scores = scan_int(strip(result_block.at_css('.playlog_result_innerblock .playlog_score_block div:nth-of-type(1)')))
-          result_grade = ::Kernel.Pathname(::Kernel.URI(src(result_block.at_css('.playlog_scorerank'))).path).sub_ext('')&.sub(/.+_/, '')&.basename&.to_s.to_sym
+          result_grade = subpath_from(result_block.at_css('.playlog_scorerank')).to_sym
           result_flags = result_block.css('.playlog_result_innerblock > img').map do |elm|
-            flag = ::Kernel.Pathname(::Kernel.URI(src(elm)).path).sub_ext('')&.basename.to_s
+            flag = subpath_from(elm)
             case flag
             when *MaimaiNet::AchievementFlag::RESULT.values; AchievementFlag(result_key: flag)
             when /_dummy$/; nil
             end
           end.compact
           result_position = result_block.at_css('.playlog_result_innerblock img.playlog_matching_icon')&.yield_self do |elm|
-            /^\d+/.match(::Kernel.Pathname(::Kernel.URI(src(elm)).path).sub_ext('')&.basename.to_s)[0].to_i
+            /^\d+/.match(subpath_from(elm))[0].to_i
           end
 
           challenge_info = nil
           result_block.at_css('div:has(> .playlog_life_block)')&.tap do |elm|
-            challenge_type = ::Kernel.Pathname(::Kernel.URI(src(elm.at_css('img:nth-of-type(1)'))).path).basename.sub_ext('').sub(/.+_/, '').to_s.to_sym
+            challenge_type = subpath_from(elm.at_css('img:nth-of-type(1)')).to_sym
             challenge_lives = scan_int(strip(elm.at_css('.playlog_life_block')))
 
             challenge_info = Model::Result::Challenge.new(

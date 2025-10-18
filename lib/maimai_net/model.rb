@@ -26,6 +26,8 @@ module MaimaiNet
         super(*args)
       end
 
+      include CoreExt::JSONSupport
+
       class << self
         # creates a strong-typed struct data
         # @param  opts [Hash{Symbol => Module}]

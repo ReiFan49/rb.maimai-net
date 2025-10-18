@@ -63,6 +63,18 @@ RSpec.describe MaimaiNet::Page, :aggregate_failures do
     ).to be_a(MaimaiNet::Model::Record::Data)
   end
 
+  it 'parse recent photo upload with utage', pending: !defined?(MaimaiNet::Model::PhotoUpload) do
+    expect(
+      load_page(MaimaiNet::Page::PhotoUpload, 'pages/playerData_photo_utage')
+    ).to all(be_a(MaimaiNet::Model::PhotoUpload))
+  end
+
+  it 'parse chartset record with utage', pending: !defined?(MaimaiNet::Model::Record::Data) do
+    expect(
+      load_page(MaimaiNet::Page::ChartsetRecord, 'pages/record_musicDetail_utage')
+    ).to be_a(MaimaiNet::Model::Record::Data)
+  end
+
   it 'parse recent gameplay session', pending: !defined?(MaimaiNet::Model::Result::TrackReference) do
     expect(
       load_page(MaimaiNet::Page::RecentTrack, 'pages/record')
