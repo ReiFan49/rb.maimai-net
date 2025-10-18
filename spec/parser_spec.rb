@@ -1,6 +1,28 @@
 # Parser Spec is an optional test with provided pages from the developer itself.
 # Actual files will not be provided publicly.
 
+RSpec::Matchers.define :be_a_valid_chart_info do
+  match do |object|
+    is_singles = true
+    check = ->(object){ (object.difficulty == 10) == !object.variant.nil? }
+
+    case object
+    when MaimaiNet::Model::PhotoUpload
+      object = object.info
+    when MaimaiNet::Model::Record::Data
+      next object.charts.values.all? do |record| check.call(record.info) end
+    when MaimaiNet::Model::Result::TrackReference,
+         MaimaiNet::Model::Result::Data
+      object = object.track.info
+    when MaimaiNet::Model::Record::InfoBest,
+         MaimaiNet::Model::Record::InfoCategory
+      object = object.info
+    end
+
+    check.call(object)
+  end
+end
+
 RSpec.describe MaimaiNet::Page, :aggregate_failures do
   def test_files(*files)
     fail ArgumentError, 'expected list of filenames, given empty' if files.empty?
@@ -54,7 +76,7 @@ RSpec.describe MaimaiNet::Page, :aggregate_failures do
   it 'parse recent photo upload', pending: !defined?(MaimaiNet::Model::PhotoUpload) do
     expect(
       load_page(MaimaiNet::Page::PhotoUpload, 'pages/playerData_photo')
-    ).to all(be_a(MaimaiNet::Model::PhotoUpload))
+    ).to all(be_a(MaimaiNet::Model::PhotoUpload).and(be_a_valid_chart_info))
   end
 
   it 'parse chartset record', pending: !defined?(MaimaiNet::Model::Record::Data) do
@@ -63,28 +85,36 @@ RSpec.describe MaimaiNet::Page, :aggregate_failures do
     ).to be_a(MaimaiNet::Model::Record::Data)
   end
 
-  it 'parse recent photo upload with utage', pending: !defined?(MaimaiNet::Model::PhotoUpload) do
-    expect(
-      load_page(MaimaiNet::Page::PhotoUpload, 'pages/playerData_photo_utage')
-    ).to all(be_a(MaimaiNet::Model::PhotoUpload))
-  end
+  describe 'utage checks' do
+    it 'parse recent photo upload with utage', pending: !defined?(MaimaiNet::Model::PhotoUpload) do
+      expect(
+        load_page(MaimaiNet::Page::PhotoUpload, 'pages/playerData_photo_utage')
+      ).to all(be_a(MaimaiNet::Model::PhotoUpload).and(be_a_valid_chart_info))
+    end
 
-  it 'parse chartset record with utage', pending: !defined?(MaimaiNet::Model::Record::Data) do
-    expect(
-      load_page(MaimaiNet::Page::ChartsetRecord, 'pages/record_musicDetail_utage')
-    ).to be_a(MaimaiNet::Model::Record::Data)
+    it 'parse chartset record with utage', pending: !defined?(MaimaiNet::Model::Record::Data) do
+      expect(
+        load_page(MaimaiNet::Page::ChartsetRecord, 'pages/record_musicDetail_utage')
+      ).to be_a(MaimaiNet::Model::Record::Data).and(be_a_valid_chart_info)
+    end
+
+    it 'parse chartset record with buddy utage', pending: !defined?(MaimaiNet::Model::Record::Data) do
+      expect(
+        load_page(MaimaiNet::Page::ChartsetRecord, 'pages/record_musicDetail_utage_buddy')
+      ).to be_a(MaimaiNet::Model::Record::Data).and(be_a_valid_chart_info)
+    end
   end
 
   it 'parse recent gameplay session', pending: !defined?(MaimaiNet::Model::Result::TrackReference) do
     expect(
       load_page(MaimaiNet::Page::RecentTrack, 'pages/record')
-    ).to all(be_a(MaimaiNet::Model::Result::TrackReference))
+    ).to all(be_a(MaimaiNet::Model::Result::TrackReference).and(be_a_valid_chart_info))
   end
 
   describe 'recent gameplay detail', pending: !defined?(MaimaiNet::Model::Result::Data) do
     it 'simple page' do
       data = load_page(MaimaiNet::Page::TrackResult, 'pages/record_playlogDetail')
-      expect(data).to be_a(MaimaiNet::Model::Result::Data)
+      expect(data).to be_a(MaimaiNet::Model::Result::Data).and(be_a_valid_chart_info)
     end
 
     it 'with course info' do
@@ -112,25 +142,25 @@ RSpec.describe MaimaiNet::Page, :aggregate_failures do
     it 'genre grouping', pending: !defined?(MaimaiNet::Model::Record::InfoCategory) do
       data = load_page(MaimaiNet::Page::MusicList, 'pages/record_musicGenre_search', &method(:flatten_hash_values))
       expect(data).to_not be_empty
-      expect(data).to all(be_a(MaimaiNet::Model::Record::InfoCategory))
+      expect(data).to all(be_a(MaimaiNet::Model::Record::InfoCategory).and(be_a_valid_chart_info))
     end
 
     it 'custom sort grouping', pending: !defined?(MaimaiNet::Model::Record::InfoCategory) do
       data = load_page(MaimaiNet::Page::MusicList, 'pages/record_musicSort_search', &method(:flatten_hash_values))
       expect(data).to_not be_empty
-      expect(data).to all(be_a(MaimaiNet::Model::Record::InfoCategory))
+      expect(data).to all(be_a(MaimaiNet::Model::Record::InfoCategory).and(be_a_valid_chart_info))
     end
 
     it 'difficulty best grouping', pending: !defined?(MaimaiNet::Model::Record::InfoBest) do
       data = load_page(MaimaiNet::Page::MusicList, 'pages/record_musicMybest_search')
       expect(data).to_not be_empty
-      expect(data).to all(be_a(MaimaiNet::Model::Record::InfoBest))
+      expect(data).to all(be_a(MaimaiNet::Model::Record::InfoBest).and(be_a_valid_chart_info))
     end
 
     it 'utage listing', pending: !defined?(MaimaiNet::Model::Record::InfoCategory) do
       data = load_page(MaimaiNet::Page::MusicList, 'pages/record_musicX_search_utage', &method(:flatten_hash_values))
       expect(data).to_not be_empty
-      expect(data).to all(be_a(MaimaiNet::Model::Record::InfoCategory))
+      expect(data).to all(be_a(MaimaiNet::Model::Record::InfoCategory).and(be_a_valid_chart_info))
     end
   end
 

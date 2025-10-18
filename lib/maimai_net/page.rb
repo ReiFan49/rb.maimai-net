@@ -137,15 +137,20 @@ module MaimaiNet
 
           chart_type = get_chart_type_from(elm.at_css('> .music_kind_icon'))
           difficulty = get_chart_difficulty_from(elm.at_css('> .block_info:nth-of-type(1) ~ img:nth-of-type(1)'))
+          chart_flags = [
+            get_chart_buddy_flag_from(elm.at_css('.music_kind_icon_utage:has(img[src*="music_utage_buddy.png"])')),
+          ].inject(0, :|)
 
           Model::PhotoUpload.new(
             info: Model::Chart::InfoLite.new(
-              title: strip(elm.at_css('> div:not(.clearfix):nth-of-type(2)')),
+              title: strip(elm.at_css('> .clearfix:nth-of-type(1) ~ div:nth-of-type(1)')),
               type: chart_type.to_s,
+              variant: get_chart_variant_from(elm.at_css('.music_kind_icon_utage:has(img[src*="music_utage.png"])')),
+              flags: chart_flags,
               difficulty: difficulty.id,
             ),
             url: URI(src(elm.at_css('> .block_info:nth-of-type(1) ~ img:nth-of-type(2)'))),
-            location: strip(elm.at_css('> div:not(.clearfix):nth-of-type(4)')),
+            location: strip(elm.at_css('> .clearfix:nth-of-type(1) ~ div:nth-of-type(3)')),
             time: jst_from(elm.at_css('> div:not(.clearfix):nth-of-type(1)')),
           )
         end
@@ -164,7 +169,11 @@ module MaimaiNet
 
         song_jacket = URI(src(@summary_block.at_css('> img:nth-of-type(1)')))
         set_type = get_chart_type_from(song_info_elm.at_css('> div:nth-of-type(1) > img'))
-        song_genre = strip(song_info_elm.at_css('> div:nth-of-type(1)'))
+        set_utage_variant = get_chart_variant_from(song_info_elm.at_css('> div:nth-of-type(1) > .music_kind_icon_utage:has(img[src*="music_utage.png"])'))
+        set_flag = [
+          get_chart_buddy_flag_from(song_info_elm.at_css('> div:nth-of-type(1) > .music_kind_icon_utage:has(img[src*="music_utage_buddy.png"])')),
+        ].inject(0, :|)
+        song_genre = text(song_info_elm.at_css('> div:nth-of-type(1)'))
         song_name = strip(song_info_elm.at_css('> div:nth-of-type(2)'))
         song_artist = strip(song_info_elm.at_css('> div:nth-of-type(3)'))
 
@@ -181,17 +190,20 @@ module MaimaiNet
         chart_score_blocks = @summary_block.css('~ div:has(~ img)')
 
         info_blocks.each do |info_block|
-          level_text = strip(info_block.at_css('.music_lv_back'))
+          level_text = get_chart_level_text_from(info_block.at_css('.music_lv_back'))
           form_block = info_block.at_css('form')
           form_inputs = form_block.css('input[name][type=hidden]').map do |elm|
             [elm['name'].to_sym, elm['value']]
           end.to_h
+
           difficulty = Difficulty(deluxe_web_id: form_inputs[:diff].to_i)
           difficulty_data[difficulty.abbrev] ||= {}
           difficulty_data[difficulty.abbrev].store(:info, Model::Chart::Info.new(
             web_id:     Model::WebID.parse(form_inputs[:idx]),
             title:      song_name,
             type:       set_type,
+            variant:    set_utage_variant,
+            flags:      set_flag,
             difficulty: difficulty.id,
             level_text: level_text,
           ))
@@ -379,25 +391,21 @@ module MaimaiNet
         result = track_segmented_blocks.transform_values do |elm_group|
           elm_group.map do |elm|
             chart_info = {}
-            chart_info[:flags] = 0
 
             chart_info[:type] = get_chart_type_from(elm.at_css('.music_kind_icon'))
-            chart_info[:variant] = get_chart_variant_from(elm.at_css('.music_kind_icon_utage_text:nth-of-type(1)'))
-
-            nil.tap do
-              next if elm.at_css('.music_kind_icon_utage').nil?
-
-              chart_info[:flags]  |= elm.at_css('.music_kind_icon_utage:has(img[src*=music_utage_buddy])').nil? ? 0 : 1
-            end
+            chart_info[:variant] = get_chart_variant_from(elm.at_css('.music_kind_icon_utage:has(img[src*="music_utage.png"])'))
+            chart_info[:flags]   = [
+              get_chart_buddy_flag_from(elm.at_css('.music_kind_icon_utage:has(img[src*="music_utage_buddy.png"])')),
+            ].inject(0, :|)
 
             chart_info = Model::Chart::Info.new(
               web_id: Model::WebID.parse(elm.at_css('input[name=idx][type=hidden]')['value']),
-              title: elm.at_css('.music_name_block').content,
+              title: strip(elm.at_css('.music_name_block')),
               type: chart_info.fetch(:type, -'unknown'),
               difficulty: get_chart_difficulty_from(elm.at_css('form > img:nth-of-type(1)')).id,
               variant: chart_info.fetch(:variant, nil),
               flags: chart_info[:flags],
-              level_text: elm.at_css('.music_lv_block').content,
+              level_text: get_chart_level_text_from(elm.at_css('.music_lv_block')),
             )
 
             score_info = nil

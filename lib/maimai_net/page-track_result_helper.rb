@@ -23,7 +23,7 @@ module MaimaiNet
           track_order = get_fullint(strip(header_block.at_css('div.sub_title > span:nth-of-type(1)')))
           play_time = jst_from(header_block.at_css('div.sub_title > span:nth-of-type(2)'))
           song_name = strip(chart_header_block.children.last)
-          chart_level = strip(chart_header_block.at_css('div:nth-of-type(1)'))
+          chart_level = get_chart_level_text_from(chart_header_block.at_css('div:nth-of-type(1)'))
           song_jacket = src(result_block.at_css('img.music_img'))
           chart_type  = get_chart_type_from(result_block.at_css('img.playlog_music_kind_icon'))
 
