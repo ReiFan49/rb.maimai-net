@@ -278,6 +278,8 @@ module MaimaiNet
         track: Track,
         breakdown: Generic[Hash, Symbol, Judgment],
         timing: Offset,
+        rating_before: Integer,
+        rating_after:  Integer,
         members: Generic[Array, TourMember],
         rival: Optional[RivalInfo],
         players: Generic[Array, PlayerInfo],

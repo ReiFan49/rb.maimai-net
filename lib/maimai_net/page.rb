@@ -340,6 +340,8 @@ module MaimaiNet
           ),
           breakdown: result_breakdown,
           timing: Model::Result::Offset.new(**Model::Result::Offset.members.zip(result_offset_breakdown).to_h),
+          rating_before: result_rating_after - result_rating_delta,
+          rating_after: result_rating_after,
           members: result_tour_members,
           rival: result_otomodachi_rival,
           players: result_players,
