@@ -290,8 +290,8 @@ module MaimaiNet
         result_offset_breakdown = @breakdown_block.css('.playlog_fl_block > div').map do |elm|
           get_int(strip(elm))
         end
-        result_rating_after = int(strip(@breakdown_block.at_css('.playlog_rating_detail_block > div:nth-of-type(1) .rating_block')))
-        result_rating_delta = int(strip(@breakdown_block.at_css('.playlog_rating_detail_block > div:nth-of-type(2)')))
+        result_rating_after = int(strip(@breakdown_block.at_css('.playlog_rating_detail_block > div:has(.rating_block) .rating_block')))
+        result_rating_delta = get_int(@breakdown_block.at_css('.playlog_rating_detail_block > div:has(.rating_block) ~ img[src*="/playlog/rating"] ~ div > span'))
         result_combos, result_sync_scores = @breakdown_block.css('.playlog_score_block').map do |elm|
           scan_int(strip(elm)).tap do |ary| ary.fill(0, ary.size...2) end
         end
