@@ -199,10 +199,14 @@ module MaimaiNet
                fail TypeError, 'expected a valid index ID format'
              end
 
+        actual_time = Time.at(/^(\d+),(\d+)$/.match(id).captures[1].to_i).localtime(32400).freeze
+
         send_request(
           'get', '/maimai-mobile/record/playlogDetail', {idx: id},
           response_page: Page::TrackResult,
-        )
+        ).tap do |track_result|
+          track_result.track.time = actual_time
+        end
       end
 
       # access recent session gameplay detailed info
