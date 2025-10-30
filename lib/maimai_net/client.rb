@@ -113,7 +113,7 @@ module MaimaiNet
           case diff
           when String, Symbol
             MaimaiNet::Difficulty::DELUXE_WEBSITE.key?(diff.to_sym) ||
-            MaimaiNet::Difficulty::DELUXE_WEBSITE.key?(Difficulty::SHORTS.key(diff.to_sym))
+            MaimaiNet::Difficulty::DELUXE_WEBSITE.key?(MaimaiNet::Difficulty::SHORTS.key(diff.to_sym))
           when MaimaiNet::Difficulty # always true
             true
           when Integer
