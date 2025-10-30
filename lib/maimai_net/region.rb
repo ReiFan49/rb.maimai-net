@@ -49,7 +49,9 @@ module MaimaiNet
         constants.map do |k|
           mod = const_get(k)
           [k.downcase, mod]
-        end.sort_by(&:object_id).select do |name, mod|
+        end.sort_by do |k, v|
+          v.object_id
+        end.select do |name, mod|
           mod.is_a?(Module) && mod < Base
         end.to_h.freeze
       end
