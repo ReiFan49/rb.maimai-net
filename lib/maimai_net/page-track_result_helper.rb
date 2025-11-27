@@ -11,7 +11,7 @@ module MaimaiNet
         HelperBlock.send(:new, nil).instance_exec do
           header_block = elm.at_css('.playlog_top_container')
           difficulty = get_chart_difficulty_from(header_block.at_css('img.playlog_diff'))
-          utage_variant = get_chart_variant_from(header_block.at_css('.playlog_music_kind_icon_utage'))
+          utage_variant = get_chart_variant_from(header_block.at_css('.playlog_music_kind_icon_utage > div:has(img[src*="music_utage.png"])'))
 
           dx_container_classes = MaimaiNet::Difficulty::DELUXE.select do |k, v| v.positive? end
             .keys.map do |k| ".playlog_#{k}_container" end
@@ -26,6 +26,10 @@ module MaimaiNet
           chart_level = get_chart_level_text_from(chart_header_block.at_css('div:nth-of-type(1)'))
           song_jacket = src(result_block.at_css('img.music_img'))
           chart_type  = get_chart_type_from(result_block.at_css('img.playlog_music_kind_icon'))
+
+          chart_flags = [
+            get_chart_buddy_flag_from(header_block.at_css('.playlog_music_kind_icon_utage > div:has(img[src*="music_utage_buddy.png"])')),
+          ].inject(0, :|)
 
           result_score = strip(result_block.at_css('.playlog_achievement_txt')).to_f
           result_deluxe_scores = scan_int(strip(result_block.at_css('.playlog_result_innerblock .playlog_score_block div:nth-of-type(1)')))
@@ -77,6 +81,7 @@ module MaimaiNet
               difficulty: difficulty.id,
               variant: utage_variant,
               level_text: chart_level,
+              flags: chart_flags,
             ),
             score: score_info,
             order: track_order,
